@@ -1,10 +1,15 @@
 import { Platform } from 'react-native';
 
-// Centralized backend base URL configuration.
-// If running on an Android emulator, 'localhost' will fail, so we map to '10.0.2.2'.
+const PRODUCTION_API_URL = 'https://kitchenfillbackend.vercel.app/api';
 const LOCAL_API_URL = 'http://192.168.1.11:3000/api';
 
-export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || LOCAL_API_URL;
+// Set to true to use the production Vercel backend, or false to use the local dev backend
+const FORCE_PRODUCTION_API = true; 
+
+export const API_BASE_URL = 
+  process.env.EXPO_PUBLIC_API_URL || 
+  (FORCE_PRODUCTION_API || !__DEV__ ? PRODUCTION_API_URL : LOCAL_API_URL);
+
 export default API_BASE_URL;
 
 // Centralized color palette configurations (in sync with global.css variables)
