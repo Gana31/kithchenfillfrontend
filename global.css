@@ -1,0 +1,26 @@
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/preflight.css" layer(base);
+@import "tailwindcss/utilities.css";
+@import "nativewind/theme";
+
+@theme {
+  --color-background: #FFFFFF;
+  --color-background-dark: #09090A;
+  --color-card: #F4F4F5;
+  --color-card-dark: #161618;
+  --color-primary: #FF6B00;
+  --color-accent: #FF8A3D;
+  --color-text: #18181B;
+  --color-text-dark: #F4F4F5;
+  --color-muted: #71717A;
+  --color-muted-dark: #A1A1AA;
+  --color-border: #E4E4E7;
+  --color-border-dark: #27272A;
+  --color-blob-purple: #D946EF;
+  --color-blob-purple-dark: #C084FC;
+  --color-blob-yellow: #EAB308;
+  --color-blob-yellow-dark: #FACC15;
+}
+
+@variant dark (&:where(.dark, .dark *));
+
