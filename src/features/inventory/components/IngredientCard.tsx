@@ -9,9 +9,10 @@ interface IngredientCardProps {
   ingredient: IngredientData;
   onEdit: () => void;
   onAdjust: () => void;
+  onStepAdjust: (type: 'add' | 'deduct') => void;
 }
 
-export default function IngredientCard({ ingredient, onEdit, onAdjust }: IngredientCardProps) {
+export default function IngredientCard({ ingredient, onEdit, onAdjust, onStepAdjust }: IngredientCardProps) {
   const { primary, danger, muted, success } = useThemeColors();
   const { name, currentStock, minThreshold, unitRelation, image } = ingredient;
 
@@ -106,35 +107,48 @@ export default function IngredientCard({ ingredient, onEdit, onAdjust }: Ingredi
           </View>
         </View>
 
-        <View className="flex-row items-center">
-          <View className="items-end mr-3">
-            <Text className={`text-base font-black ${isLowStock ? 'text-red-500' : 'text-text dark:text-text-dark'}`}>
-              {formattedStock}
-            </Text>
-            <View className={`px-2 py-0.5 rounded-md mt-1 ${isLowStock ? 'bg-red-500/10' : 'bg-emerald-500/10'}`}>
-              <Text className={`text-[9px] font-black uppercase ${isLowStock ? 'text-red-500' : 'text-emerald-500'}`}>
-                {isLowStock ? 'Low Stock' : 'Good'}
-              </Text>
-            </View>
-          </View>
+        <View className="flex-row items-center" style={{ gap: 10 }}>
+          {/* Edit Button */}
+          <TouchableOpacity 
+            onPress={onEdit}
+            activeOpacity={0.7}
+            className="w-8 h-8 rounded-lg bg-border/20 items-center justify-center"
+          >
+            <Ionicons name="pencil-outline" size={14} color={primary} />
+          </TouchableOpacity>
 
-          <View className="flex-row" style={{ gap: 8 }}>
-            {/* Quick Adjust Button */}
+          {/* Stock Stepper Controls */}
+          <View className="flex-row items-center bg-border/10 border border-border dark:border-border-dark rounded-xl px-1 py-1" style={{ gap: 4 }}>
+            {/* Minus Button */}
+            <TouchableOpacity 
+              onPress={() => onStepAdjust('deduct')}
+              activeOpacity={0.6}
+              className="w-7 h-7 rounded-lg bg-red-500/10 items-center justify-center active:bg-red-500/20"
+            >
+              <Ionicons name="remove" size={14} color={danger} />
+            </TouchableOpacity>
+
+            {/* Current Stock (Clickable to open custom adjust modal) */}
             <TouchableOpacity 
               onPress={onAdjust}
               activeOpacity={0.7}
-              className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 items-center justify-center"
+              className="px-2 items-center justify-center"
             >
-              <Ionicons name="add" size={16} color={success} />
+              <Text className={`text-sm font-black ${isLowStock ? 'text-red-500' : 'text-text dark:text-text-dark'}`}>
+                {formattedStock}
+              </Text>
+              <Text className="text-[8px] text-muted dark:text-muted-dark font-bold uppercase tracking-wider -mt-0.5">
+                {isLowStock ? 'Low' : 'Good'}
+              </Text>
             </TouchableOpacity>
 
-            {/* Edit Button */}
+            {/* Plus Button */}
             <TouchableOpacity 
-              onPress={onEdit}
-              activeOpacity={0.7}
-              className="w-8 h-8 rounded-lg bg-border/20 items-center justify-center"
+              onPress={() => onStepAdjust('add')}
+              activeOpacity={0.6}
+              className="w-7 h-7 rounded-lg bg-emerald-500/10 items-center justify-center active:bg-emerald-500/20"
             >
-              <Ionicons name="pencil-outline" size={14} color={primary} />
+              <Ionicons name="add" size={14} color={success} />
             </TouchableOpacity>
           </View>
         </View>

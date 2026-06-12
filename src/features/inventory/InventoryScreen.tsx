@@ -5,14 +5,15 @@ import {
   ScrollView, 
   TouchableOpacity, 
   ActivityIndicator,
-  TextInput
+  TextInput,
+  Alert
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import Card from '../../components/Card';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors } from '../../hooks/useThemeColors';
-import { useGetIngredientsQuery, IngredientData } from './inventoryApi';
+import { useGetIngredientsQuery, useUpdateIngredientMutation, IngredientData } from './inventoryApi';
 import IngredientCard from './components/IngredientCard';
 import AddIngredientModal from './components/AddIngredientModal';
 import AdjustStockModal from './components/AdjustStockModal';
@@ -32,6 +33,35 @@ export default function InventoryScreen({ navigation }: any) {
 
   // Fetch ingredients from API
   const { data, isLoading, error, refetch } = useGetIngredientsQuery();
+  const [updateIngredient] = useUpdateIngredientMutation();
+
+  const handleStepAdjust = async (ingredient: IngredientData, type: 'add' | 'deduct') => {
+    const ratio = ingredient.unitRelation.conversionRatio;
+    let newBaseQuantity = ingredient.currentStock;
+
+    if (type === 'add') {
+      newBaseQuantity += ratio;
+    } else {
+      newBaseQuantity = Math.max(0, newBaseQuantity - ratio);
+    }
+
+    try {
+      await updateIngredient({
+        id: ingredient._id,
+        body: {
+          name: ingredient.name,
+          minThreshold: ingredient.minThreshold,
+          purchaseUnit: ingredient.unitRelation.purchaseUnit,
+          baseUnit: ingredient.unitRelation.baseUnit,
+          conversionRatio: ratio,
+          currentStock: newBaseQuantity,
+          image: ingredient.image || undefined
+        }
+      }).unwrap();
+    } catch (err: any) {
+      Alert.alert('Adjustment Failed', err.data?.error || 'Failed to update stock.');
+    }
+  };
 
   React.useLayoutEffect(() => {
     navigation.setOptions({
@@ -153,6 +183,7 @@ export default function InventoryScreen({ navigation }: any) {
                   setAdjustingIngredient(item);
                   setIsAdjustModalVisible(true);
                 }}
+                onStepAdjust={(type) => handleStepAdjust(item, type)}
               />
             ))}
           </View>
