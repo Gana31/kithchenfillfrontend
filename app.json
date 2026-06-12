@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Cloud Kitchen Inventory",
-    "slug": "cloud-kitchen-inventory",
+    "name": "KitchenFill",
+    "slug": "kitchenfill",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/logo.png",
