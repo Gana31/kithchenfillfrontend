@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "Cloud Kitchen Inventory",
+    "slug": "cloud-kitchen-inventory",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/logo.png",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.kitchenfill.inventory"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/logo.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.kitchenfill.inventory"
+    },
+    "web": {
+      "favicon": "./assets/logo.png"
+    }
+  }
+}
