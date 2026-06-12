@@ -5,8 +5,7 @@ import {
   ScrollView, 
   TouchableOpacity, 
   ActivityIndicator,
-  TextInput,
-  Alert
+  TextInput
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -40,35 +39,28 @@ export default function InventoryScreen({ navigation }: any) {
   const [updateIngredient] = useUpdateIngredientMutation();
   const [deleteIngredient] = useDeleteIngredientMutation();
 
-  const handleDeleteIngredient = (ingredient: IngredientData) => {
-    Alert.alert(
-      'Delete Ingredient',
-      `Are you sure you want to delete "${ingredient.name}"? This action cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
-          style: 'destructive', 
-          onPress: async () => {
-            try {
-              setUpdatingId(ingredient._id);
-              await deleteIngredient(ingredient._id).unwrap();
-              dispatch(showToast({ message: 'Ingredient successfully deleted.', type: 'success' }));
-            } catch (err: any) {
-              dispatch(
-                showToast({
-                  title: 'Delete Failed',
-                  message: err.data?.error || 'Failed to delete ingredient.',
-                  type: 'error',
-                })
-              );
-            } finally {
-              setUpdatingId(null);
-            }
-          } 
-        }
-      ]
-    );
+  const handleDeleteIngredient = async (ingredient: IngredientData) => {
+    try {
+      setUpdatingId(ingredient._id);
+      await deleteIngredient(ingredient._id).unwrap();
+      dispatch(
+        showToast({
+          title: 'Success',
+          message: `Ingredient "${ingredient.name}" successfully deleted.`,
+          type: 'success',
+        })
+      );
+    } catch (err: any) {
+      dispatch(
+        showToast({
+          title: 'Delete Failed',
+          message: err.data?.error || 'Failed to delete ingredient.',
+          type: 'error',
+        })
+      );
+    } finally {
+      setUpdatingId(null);
+    }
   };
 
   const handleStepAdjust = async (ingredient: IngredientData, type: 'add' | 'deduct', baseAdjustment: number) => {
