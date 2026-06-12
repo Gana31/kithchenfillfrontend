@@ -5,14 +5,15 @@ import {
   ScrollView, 
   TouchableOpacity, 
   ActivityIndicator,
-  TextInput
+  TextInput,
+  Alert
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import Card from '../../components/Card';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors } from '../../hooks/useThemeColors';
-import { useGetIngredientsQuery, useUpdateIngredientMutation, IngredientData } from './inventoryApi';
+import { useGetIngredientsQuery, useUpdateIngredientMutation, useDeleteIngredientMutation, IngredientData } from './inventoryApi';
 import IngredientCard from './components/IngredientCard';
 import AddIngredientModal from './components/AddIngredientModal';
 import AdjustStockModal from './components/AdjustStockModal';
@@ -37,6 +38,38 @@ export default function InventoryScreen({ navigation }: any) {
   // Fetch ingredients from API
   const { data, isLoading, error, refetch } = useGetIngredientsQuery();
   const [updateIngredient] = useUpdateIngredientMutation();
+  const [deleteIngredient] = useDeleteIngredientMutation();
+
+  const handleDeleteIngredient = (ingredient: IngredientData) => {
+    Alert.alert(
+      'Delete Ingredient',
+      `Are you sure you want to delete "${ingredient.name}"? This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete', 
+          style: 'destructive', 
+          onPress: async () => {
+            try {
+              setUpdatingId(ingredient._id);
+              await deleteIngredient(ingredient._id).unwrap();
+              dispatch(showToast({ message: 'Ingredient successfully deleted.', type: 'success' }));
+            } catch (err: any) {
+              dispatch(
+                showToast({
+                  title: 'Delete Failed',
+                  message: err.data?.error || 'Failed to delete ingredient.',
+                  type: 'error',
+                })
+              );
+            } finally {
+              setUpdatingId(null);
+            }
+          } 
+        }
+      ]
+    );
+  };
 
   const handleStepAdjust = async (ingredient: IngredientData, type: 'add' | 'deduct', baseAdjustment: number) => {
     setUpdatingId(ingredient._id);
@@ -197,6 +230,7 @@ export default function InventoryScreen({ navigation }: any) {
                   setIsAdjustModalVisible(true);
                 }}
                 onStepAdjust={(type, baseAmount) => handleStepAdjust(item, type, baseAmount)}
+                onDelete={() => handleDeleteIngredient(item)}
               />
             ))}
           </View>

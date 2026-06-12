@@ -18,6 +18,7 @@ export interface IngredientData {
   tenantId: string;
   restaurantId: string;
   name: string;
+  category?: string;
   currentStock: number;
   minThreshold: number;
   unitRelation: UnitRelation;
@@ -31,6 +32,7 @@ export interface IngredientData {
 
 export interface CreateIngredientPayload {
   name: string;
+  category?: string;
   minThreshold: number;
   purchaseUnit: 'kg' | 'liter' | 'pack';
   baseUnit: 'g' | 'ml' | 'pcs';
@@ -42,6 +44,7 @@ export interface CreateIngredientPayload {
 
 export interface UpdateIngredientPayload {
   name: string;
+  category?: string;
   minThreshold: number;
   purchaseUnit: 'kg' | 'liter' | 'pack';
   baseUnit: 'g' | 'ml' | 'pcs';
@@ -81,6 +84,13 @@ export const inventoryApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Ingredient'],
     }),
+    deleteIngredient: builder.mutation<{ success: boolean; message: string }, string>({
+      query: (id) => ({
+        url: `/ingredients/${id}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['Ingredient'],
+    }),
     getUploadSignature: builder.query<UploadSignatureResponse, void>({
       query: () => '/ingredients/upload-signature',
     }),
@@ -92,6 +102,7 @@ export const {
   useGetIngredientsQuery,
   useCreateIngredientMutation,
   useUpdateIngredientMutation,
+  useDeleteIngredientMutation,
   useGetUploadSignatureQuery,
   useLazyGetUploadSignatureQuery,
 } = inventoryApi;

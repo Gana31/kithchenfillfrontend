@@ -32,6 +32,19 @@ interface AddIngredientModalProps {
 
 type UnitCategory = 'weight' | 'volume' | 'count';
 
+const CATEGORIES = [
+  { name: 'Meat', icon: '🍗' },
+  { name: 'Dairy', icon: '🥛' },
+  { name: 'Grains', icon: '🌾' },
+  { name: 'Vegetables', icon: '🥦' },
+  { name: 'Seafood', icon: '🐟' },
+  { name: 'Spices', icon: '🧂' },
+  { name: 'Beverages', icon: '🥤' },
+  { name: 'Bakery', icon: '🍞' },
+  { name: 'Packaging', icon: '📦' },
+  { name: 'Pantry', icon: '🥫' }
+];
+
 export default function AddIngredientModal({ visible, onClose, ingredient }: AddIngredientModalProps) {
   const { muted, primary } = useThemeColors();
   const dispatch = useAppDispatch();
@@ -41,6 +54,7 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
 
   // Form State
   const [name, setName] = useState('');
+  const [category, setCategory] = useState('Pantry');
   const [unitCategory, setUnitCategory] = useState<UnitCategory>('weight');
   const [minThresholdInput, setMinThresholdInput] = useState('');
   const [initialQtyInput, setInitialQtyInput] = useState('');
@@ -55,6 +69,7 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
   useEffect(() => {
     if (ingredient) {
       setName(ingredient.name);
+      setCategory(ingredient.category || 'Pantry');
       
       const purchaseUnit = ingredient.unitRelation.purchaseUnit;
       let cat: UnitCategory = 'weight';
@@ -72,6 +87,7 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
       setSelectedImage(ingredient.image);
     } else {
       setName('');
+      setCategory('Pantry');
       setUnitCategory('weight');
       setMinThresholdInput('');
       setInitialQtyInput('');
@@ -193,6 +209,7 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
           id: ingredient._id,
           body: {
             name: name.trim(),
+            category,
             minThreshold: baseThreshold,
             purchaseUnit,
             baseUnit,
@@ -210,6 +227,7 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
         // Add mode
         const result = await createIngredient({
           name: name.trim(),
+          category,
           minThreshold: baseThreshold,
           purchaseUnit,
           baseUnit,
@@ -341,6 +359,38 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
                 value={name}
                 onChangeText={setName}
               />
+
+              {/* Category Badge Selector */}
+              <Text className="text-xs font-black text-text dark:text-text-dark mb-2 uppercase tracking-wider">
+                Category Badge
+              </Text>
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false} 
+                className="mb-5"
+                contentContainerStyle={{ gap: 8, paddingVertical: 4 }}
+              >
+                {CATEGORIES.map((cat) => {
+                  const isSelected = category === cat.name;
+                  return (
+                    <TouchableOpacity
+                      key={cat.name}
+                      onPress={() => setCategory(cat.name)}
+                      activeOpacity={0.7}
+                      className={`flex-row py-2 px-3 rounded-full border items-center ${
+                        isSelected
+                          ? 'bg-primary/10 border-primary'
+                          : 'bg-border/20 border-border dark:border-border-dark'
+                      }`}
+                    >
+                      <Text className="text-sm mr-1.5">{cat.icon}</Text>
+                      <Text className={`text-xs font-bold ${isSelected ? 'text-primary' : 'text-muted dark:text-muted-dark'}`}>
+                        {cat.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
 
               {/* Unit Category Selector */}
               <Text className="text-xs font-black text-text dark:text-text-dark mb-2 uppercase tracking-wider">

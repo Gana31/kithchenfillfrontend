@@ -11,6 +11,7 @@ interface IngredientCardProps {
   onEdit: () => void;
   onAdjust: () => void;
   onStepAdjust: (type: 'add' | 'deduct', baseAmount: number) => void;
+  onDelete: () => void;
 }
 
 // Robust helper function to parse user inputs (e.g. "100g", "1.5 kg", "250 ml", "2", or empty input)
@@ -79,14 +80,40 @@ export default function IngredientCard({
   isUpdating = false, 
   onEdit, 
   onAdjust, 
-  onStepAdjust 
+  onStepAdjust,
+  onDelete
 }: IngredientCardProps) {
   const { primary, danger, muted, success } = useThemeColors();
   const { name, currentStock, minThreshold, unitRelation, image } = ingredient;
   const [stepAmount, setStepAmount] = useState('');
 
-  // Deriving category details based on name
-  const getCategory = (itemName: string) => {
+  // Mapping category details
+  const getCategoryDetails = (catName?: string, itemName: string = '') => {
+    if (catName) {
+      switch (catName) {
+        case 'Meat':
+          return { type: 'Meat', icon: '🍗', bgClass: 'bg-red-500/10', textClass: 'text-red-500 dark:text-red-400' };
+        case 'Dairy':
+          return { type: 'Dairy', icon: '🥛', bgClass: 'bg-blue-500/10', textClass: 'text-blue-500 dark:text-blue-400' };
+        case 'Grains':
+          return { type: 'Grains', icon: '🌾', bgClass: 'bg-amber-500/20', textClass: 'text-amber-700 dark:text-amber-400' };
+        case 'Vegetables':
+          return { type: 'Vegetables', icon: '🥦', bgClass: 'bg-green-500/10', textClass: 'text-green-500 dark:text-green-400' };
+        case 'Seafood':
+          return { type: 'Seafood', icon: '🐟', bgClass: 'bg-cyan-500/10', textClass: 'text-cyan-500 dark:text-cyan-400' };
+        case 'Spices':
+          return { type: 'Spices', icon: '🧂', bgClass: 'bg-orange-500/10', textClass: 'text-orange-500 dark:text-orange-400' };
+        case 'Beverages':
+          return { type: 'Beverages', icon: '🥤', bgClass: 'bg-pink-500/10', textClass: 'text-pink-500 dark:text-pink-400' };
+        case 'Bakery':
+          return { type: 'Bakery', icon: '🍞', bgClass: 'bg-yellow-600/10', textClass: 'text-yellow-600 dark:text-yellow-500' };
+        case 'Packaging':
+          return { type: 'Packaging', icon: '📦', bgClass: 'bg-purple-500/10', textClass: 'text-purple-500 dark:text-purple-400' };
+        case 'Pantry':
+          return { type: 'Pantry', icon: '🥫', bgClass: 'bg-emerald-500/10', textClass: 'text-emerald-500 dark:text-emerald-400' };
+      }
+    }
+
     const lowercaseName = itemName.toLowerCase();
     if (
       lowercaseName.includes('chicken') || 
@@ -128,7 +155,7 @@ export default function IngredientCard({
     return { type: 'Pantry', icon: '🥫', bgClass: 'bg-emerald-500/10', textClass: 'text-emerald-500 dark:text-emerald-400' };
   };
 
-  const { type, icon, bgClass, textClass } = getCategory(name);
+  const { type, icon, bgClass, textClass } = getCategoryDetails(ingredient.category, name);
   const isLowStock = currentStock <= minThreshold;
   const baseUnit = unitRelation.baseUnit;
 
@@ -222,6 +249,15 @@ export default function IngredientCard({
             className="w-8 h-8 rounded-xl bg-border/20 items-center justify-center active:bg-border/30 disabled:opacity-50"
           >
             <Ionicons name="pencil-sharp" size={14} color={primary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            onPress={onDelete}
+            disabled={isUpdating}
+            activeOpacity={0.7}
+            className="w-8 h-8 rounded-xl bg-red-500/10 items-center justify-center active:bg-red-500/20 disabled:opacity-50"
+          >
+            <Ionicons name="trash-outline" size={14} color={danger} />
           </TouchableOpacity>
         </View>
       </View>
