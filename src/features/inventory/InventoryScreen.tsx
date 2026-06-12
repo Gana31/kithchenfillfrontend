@@ -35,14 +35,16 @@ export default function InventoryScreen({ navigation }: any) {
   const { data, isLoading, error, refetch } = useGetIngredientsQuery();
   const [updateIngredient] = useUpdateIngredientMutation();
 
-  const handleStepAdjust = async (ingredient: IngredientData, type: 'add' | 'deduct') => {
+  const handleStepAdjust = async (ingredient: IngredientData, type: 'add' | 'deduct', amount: number) => {
     const ratio = ingredient.unitRelation.conversionRatio;
     let newBaseQuantity = ingredient.currentStock;
 
+    const baseAdjustment = amount * ratio;
+
     if (type === 'add') {
-      newBaseQuantity += ratio;
+      newBaseQuantity += baseAdjustment;
     } else {
-      newBaseQuantity = Math.max(0, newBaseQuantity - ratio);
+      newBaseQuantity = Math.max(0, newBaseQuantity - baseAdjustment);
     }
 
     try {
@@ -183,7 +185,7 @@ export default function InventoryScreen({ navigation }: any) {
                   setAdjustingIngredient(item);
                   setIsAdjustModalVisible(true);
                 }}
-                onStepAdjust={(type) => handleStepAdjust(item, type)}
+                onStepAdjust={(type, amount) => handleStepAdjust(item, type, amount)}
               />
             ))}
           </View>
