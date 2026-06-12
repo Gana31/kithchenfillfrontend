@@ -25,6 +25,12 @@
     },
     "web": {
       "favicon": "./assets/logo.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "0b92faa8-51cd-4433-bf2d-149f26145967"
+      }
+    },
+    "owner": "ganesh123456"
   }
 }
