@@ -18,6 +18,7 @@ import AddIngredientModal from './components/AddIngredientModal';
 import AdjustStockModal from './components/AdjustStockModal';
 import { useAppDispatch } from '../../store/store';
 import { showToast } from '../../store/toastSlice';
+import ConfirmModal from '../../components/ConfirmModal';
 
 export default function InventoryScreen({ navigation }: any) {
   const dispatch = useAppDispatch();
@@ -33,20 +34,29 @@ export default function InventoryScreen({ navigation }: any) {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [ingredientToDelete, setIngredientToDelete] = useState<IngredientData | null>(null);
 
   // Fetch ingredients from API
   const { data, isLoading, error, refetch } = useGetIngredientsQuery();
   const [updateIngredient] = useUpdateIngredientMutation();
   const [deleteIngredient] = useDeleteIngredientMutation();
 
-  const handleDeleteIngredient = async (ingredient: IngredientData) => {
+  const handleDeleteIngredient = (ingredient: IngredientData) => {
+    setIngredientToDelete(ingredient);
+  };
+
+  const executeDeleteIngredient = async () => {
+    if (!ingredientToDelete) return;
+    const target = ingredientToDelete;
+    setIngredientToDelete(null);
+
     try {
-      setUpdatingId(ingredient._id);
-      await deleteIngredient(ingredient._id).unwrap();
+      setUpdatingId(target._id);
+      await deleteIngredient(target._id).unwrap();
       dispatch(
         showToast({
           title: 'Success',
-          message: `Ingredient "${ingredient.name}" successfully deleted.`,
+          message: `Ingredient "${target.name}" successfully deleted.`,
           type: 'success',
         })
       );
@@ -247,6 +257,17 @@ export default function InventoryScreen({ navigation }: any) {
           setAdjustingIngredient(null);
         }}
         ingredient={adjustingIngredient}
+      />
+
+      {/* Custom Delete Confirmation Modal */}
+      <ConfirmModal
+        visible={ingredientToDelete !== null}
+        title="Delete Ingredient"
+        message={`Are you sure you want to delete "${ingredientToDelete?.name}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        isDestructive={true}
+        onConfirm={executeDeleteIngredient}
+        onCancel={() => setIngredientToDelete(null)}
       />
     </View>
   );

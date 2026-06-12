@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useAppDispatch, useAppSelector } from '../../store/store';
@@ -10,12 +10,14 @@ import Button from '../../components/Button';
 import Input from '../../components/Input';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors } from '../../hooks/useThemeColors';
+import ConfirmModal from '../../components/ConfirmModal';
 
 export default function ProfileScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
   const dispatch = useAppDispatch();
   const user = useAppSelector(selectCurrentUser);
   const { primary, danger, isDark } = useThemeColors();
+  const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
 
   React.useLayoutEffect(() => {
     navigation.setOptions({
@@ -64,14 +66,7 @@ export default function ProfileScreen({ navigation }: any) {
   };
 
   const handleLogout = () => {
-    Alert.alert(
-      'Log Out',
-      'Are you sure you want to log out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Log Out', style: 'destructive', onPress: () => dispatch(logoutUser()) }
-      ]
-    );
+    setIsLogoutModalVisible(true);
   };
 
   return (
@@ -156,6 +151,19 @@ export default function ProfileScreen({ navigation }: any) {
           </TouchableOpacity>
         </Card>
       </ScrollView>
+
+      <ConfirmModal
+        visible={isLogoutModalVisible}
+        title="Log Out"
+        message="Are you sure you want to log out?"
+        confirmLabel="Log Out"
+        isDestructive={true}
+        onConfirm={() => {
+          setIsLogoutModalVisible(false);
+          dispatch(logoutUser());
+        }}
+        onCancel={() => setIsLogoutModalVisible(false)}
+      />
     </View>
   );
 }
