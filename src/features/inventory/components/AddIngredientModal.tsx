@@ -21,6 +21,8 @@ import {
   IngredientData 
 } from '../inventoryApi';
 import { useThemeColors } from '../../../hooks/useThemeColors';
+import { useAppDispatch } from '../../../store/store';
+import { showToast } from '../../../store/toastSlice';
 
 interface AddIngredientModalProps {
   visible: boolean;
@@ -32,6 +34,7 @@ type UnitCategory = 'weight' | 'volume' | 'count';
 
 export default function AddIngredientModal({ visible, onClose, ingredient }: AddIngredientModalProps) {
   const { muted, primary } = useThemeColors();
+  const dispatch = useAppDispatch();
   const [createIngredient, { isLoading: isCreating }] = useCreateIngredientMutation();
   const [updateIngredient, { isLoading: isUpdating }] = useUpdateIngredientMutation();
   const [triggerGetSignature, { isFetching: isFetchingSignature }] = useLazyGetUploadSignatureQuery();
@@ -82,7 +85,7 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'We need gallery access to select a photo.');
+        dispatch(showToast({ message: 'We need gallery access to select a photo.', type: 'error', title: 'Permission Denied' }));
         return;
       }
 
@@ -98,7 +101,7 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
       }
     } catch (err) {
       console.error('Pick image error:', err);
-      Alert.alert('Error', 'Failed to pick image.');
+      dispatch(showToast({ message: 'Failed to pick image.', type: 'error', title: 'Error' }));
     }
   };
 
@@ -201,7 +204,7 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
 
         if (result.success) {
           onClose();
-          Alert.alert('Success', 'Ingredient successfully updated!');
+          dispatch(showToast({ message: 'Ingredient successfully updated!', type: 'success', title: 'Success' }));
         }
       } else {
         // Add mode
@@ -224,7 +227,7 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
           setPurchaseCostInput('');
           setSelectedImage(null);
           onClose();
-          Alert.alert('Success', 'Ingredient successfully added to inventory!');
+          dispatch(showToast({ message: 'Ingredient successfully added to inventory!', type: 'success', title: 'Success' }));
         }
       }
     } catch (err: any) {

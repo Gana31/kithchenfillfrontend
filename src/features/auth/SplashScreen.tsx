@@ -5,6 +5,8 @@ import { COLORS } from '../../config/constants';
 import { useAppSelector } from '../../store/store';
 import { selectIsDark } from '../../store/themeSlice';
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 type RootStackParamList = {
   Splash: undefined;
   Onboarding: undefined;
@@ -17,15 +19,38 @@ export default function SplashScreen({ navigation }: { navigation?: any }) {
   useEffect(() => {
     if (!navigation) return;
 
-    // Navigate to Onboarding screen after 2.5 seconds, resetting stack history
-    const timer = setTimeout(() => {
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Onboarding' }],
-      });
-    }, 2500);
+    let isMounted = true;
+    let timer: NodeJS.Timeout;
 
-    return () => clearTimeout(timer);
+    const checkOnboardingAndNavigate = async () => {
+      try {
+        const hasCompleted = await AsyncStorage.getItem('hasCompletedOnboarding');
+        if (!isMounted) return;
+
+        timer = setTimeout(() => {
+          navigation.reset({
+            index: 0,
+            routes: [{ name: hasCompleted === 'true' ? 'Login' : 'Onboarding' }],
+          });
+        }, 2500);
+      } catch (err) {
+        console.error('Failed to read onboarding state:', err);
+        if (!isMounted) return;
+        timer = setTimeout(() => {
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'Onboarding' }],
+          });
+        }, 2500);
+      }
+    };
+
+    checkOnboardingAndNavigate();
+
+    return () => {
+      isMounted = false;
+      if (timer) clearTimeout(timer);
+    };
   }, [navigation]);
 
   return (

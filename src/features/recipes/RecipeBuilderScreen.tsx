@@ -1,12 +1,15 @@
 import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Platform, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import Card from '../../components/Card';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors } from '../../hooks/useThemeColors';
+import { useAppDispatch } from '../../store/store';
+import { showToast } from '../../store/toastSlice';
 
 export default function RecipeBuilderScreen({ navigation }: any) {
+  const dispatch = useAppDispatch();
   const insets = useSafeAreaInsets();
   const { primary, muted, isDark } = useThemeColors();
 
@@ -14,7 +17,15 @@ export default function RecipeBuilderScreen({ navigation }: any) {
     navigation.setOptions({
       headerRight: () => (
         <TouchableOpacity
-          onPress={() => Alert.alert('Add Recipe', 'Form to add new recipe batch details will be loaded here.')}
+          onPress={() =>
+            dispatch(
+              showToast({
+                title: 'Add Recipe',
+                message: 'Form to add new recipe batch details will be loaded here.',
+                type: 'info',
+              })
+            )
+          }
           activeOpacity={0.7}
           className="w-10 h-10 rounded-xl bg-card dark:bg-card-dark border border-border dark:border-border-dark justify-center items-center mr-6 shadow-sm"
         >

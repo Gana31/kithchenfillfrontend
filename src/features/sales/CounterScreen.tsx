@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import Card from '../../components/Card';
 import Button from '../../components/Button';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors } from '../../hooks/useThemeColors';
+import { useAppDispatch } from '../../store/store';
+import { showToast } from '../../store/toastSlice';
 
 export default function CounterScreen({ navigation }: any) {
+  const dispatch = useAppDispatch();
   const insets = useSafeAreaInsets();
   const { primary, danger, isDark } = useThemeColors();
   const [todaysTotal, setTodaysTotal] = useState(0);
@@ -38,7 +41,13 @@ export default function CounterScreen({ navigation }: any) {
 
   const handleLogSale = (name: string, price: number) => {
     setTodaysTotal(prev => prev + price);
-    Alert.alert('Plate Logged', `Logged 1x ${name} (₹${price}). Stock has been decremented.`);
+    dispatch(
+      showToast({
+        title: 'Plate Logged',
+        message: `Logged 1x ${name} (₹${price}). Stock has been decremented.`,
+        type: 'success',
+      })
+    );
   };
 
   return (
@@ -112,7 +121,15 @@ export default function CounterScreen({ navigation }: any) {
           </Text>
           <Button 
             label="Upload Order CSV" 
-            onPress={() => Alert.alert('CSV Upload', 'Spreadsheet parser will be loaded here.')}
+            onPress={() =>
+              dispatch(
+                showToast({
+                  title: 'CSV Upload',
+                  message: 'Spreadsheet parser will be loaded here.',
+                  type: 'info',
+                })
+              )
+            }
             variant="secondary"
             className="w-full"
           />

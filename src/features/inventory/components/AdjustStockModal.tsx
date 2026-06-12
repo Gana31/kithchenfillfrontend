@@ -13,6 +13,8 @@ import Input from '../../../components/Input';
 import Button from '../../../components/Button';
 import { useUpdateIngredientMutation, IngredientData } from '../inventoryApi';
 import { useThemeColors } from '../../../hooks/useThemeColors';
+import { useAppDispatch } from '../../../store/store';
+import { showToast } from '../../../store/toastSlice';
 
 interface AdjustStockModalProps {
   visible: boolean;
@@ -22,6 +24,7 @@ interface AdjustStockModalProps {
 
 export default function AdjustStockModal({ visible, onClose, ingredient }: AdjustStockModalProps) {
   const { muted, primary, danger, success } = useThemeColors();
+  const dispatch = useAppDispatch();
   const [updateIngredient, { isLoading: isUpdating }] = useUpdateIngredientMutation();
 
   // Input state
@@ -98,10 +101,11 @@ export default function AdjustStockModal({ visible, onClose, ingredient }: Adjus
 
       if (result.success) {
         onClose();
-        Alert.alert(
-          'Stock Adjusted',
-          `Successfully ${type === 'add' ? 'added' : 'deducted'} ${valueNum} ${unitLabel} for ${ingredient.name}.`
-        );
+        dispatch(showToast({
+          message: `Successfully ${type === 'add' ? 'added' : 'deducted'} ${valueNum} ${unitLabel} for ${ingredient.name}.`,
+          type: 'success',
+          title: 'Stock Adjusted'
+        }));
       }
     } catch (err: any) {
       setFormError(err.data?.error || 'Failed to adjust stock.');

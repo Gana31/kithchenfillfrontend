@@ -25,6 +25,7 @@ import RecipeBuilderScreen from './src/features/recipes/RecipeBuilderScreen';
 import CounterScreen from './src/features/sales/CounterScreen';
 import BlobBackground from './src/components/BlobBackground';
 import ProfileScreen from './src/features/profile/ProfileScreen';
+import Toast from './src/components/Toast';
 import './global.css'; // Import compiled TailwindCSS global styles
 
 const Stack = createNativeStackNavigator();
@@ -244,6 +245,7 @@ function RootApp() {
             )}
           </Stack.Navigator>
         </NavigationContainer>
+        <Toast />
       </View>
     </SafeAreaProvider>
   );

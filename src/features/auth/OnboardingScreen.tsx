@@ -7,6 +7,7 @@ import BlobBackground from '../../components/BlobBackground';
 import Button from '../../components/Button';
 import { useAppSelector } from '../../store/store';
 import { selectIsDark } from '../../store/themeSlice';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width, height } = Dimensions.get('window');
 
@@ -78,17 +79,27 @@ export default function OnboardingScreen() {
     };
   }, [currentSlideIndex]);
 
-  const handleNext = () => {
+  const completeOnboarding = async () => {
+    try {
+      await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
+    } catch (err) {
+      console.error('Failed to save onboarding completion state:', err);
+    }
+  };
+
+  const handleNext = async () => {
     if (currentSlideIndex < slides.length - 1) {
       const nextIndex = currentSlideIndex + 1;
       setCurrentSlideIndex(nextIndex);
       scrollViewRef.current?.scrollTo({ x: nextIndex * width, animated: true });
     } else {
+      await completeOnboarding();
       navigation.navigate('Login');
     }
   };
 
-  const handleSkip = () => {
+  const handleSkip = async () => {
+    await completeOnboarding();
     navigation.navigate('Login');
   };
 

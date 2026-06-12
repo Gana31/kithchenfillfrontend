@@ -4,8 +4,7 @@ import {
   Text, 
   ScrollView, 
   TouchableOpacity, 
-  ActivityIndicator, 
-  Alert
+  ActivityIndicator
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -19,8 +18,11 @@ import { useThemeColors } from '../../hooks/useThemeColors';
 import SearchBar from './components/SearchBar';
 import OwnerCard from './components/OwnerCard';
 import AddOwnerModal from './components/AddOwnerModal';
+import { useAppDispatch } from '../../store/store';
+import { showToast } from '../../store/toastSlice';
 
 export default function ManageOwnersScreen({ navigation }: any) {
+  const dispatch = useAppDispatch();
   const insets = useSafeAreaInsets();
   const { primary, isDark } = useThemeColors();
   
@@ -51,10 +53,22 @@ export default function ManageOwnersScreen({ navigation }: any) {
     try {
       const response = await toggleTenantStatus({ id, status: newStatus }).unwrap();
       if (response.success) {
-        // Success
+        dispatch(
+          showToast({
+            title: 'Success',
+            message: `Owner account status updated to ${newStatus}.`,
+            type: 'success',
+          })
+        );
       }
     } catch (err: any) {
-      Alert.alert('Error', err.data?.error || 'Failed to update tenant status.');
+      dispatch(
+        showToast({
+          title: 'Error',
+          message: err.data?.error || 'Failed to update tenant status.',
+          type: 'error',
+        })
+      );
     }
   };
 

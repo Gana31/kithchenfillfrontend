@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useAppDispatch, useAppSelector } from '../../store/store';
 import { logoutUser, selectCurrentUser } from '../auth/authSlice';
+import { showToast } from '../../store/toastSlice';
 import Card from '../../components/Card';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
@@ -40,13 +41,25 @@ export default function ProfileScreen({ navigation }: any) {
 
   const handleUpdateProfile = () => {
     if (!name || !email) {
-      Alert.alert('Error', 'Name and Email are required.');
+      dispatch(
+        showToast({
+          title: 'Error',
+          message: 'Name and Email are required.',
+          type: 'error',
+        })
+      );
       return;
     }
     setIsUpdating(true);
     setTimeout(() => {
       setIsUpdating(false);
-      Alert.alert('Success', 'Profile updated successfully (local simulation).');
+      dispatch(
+        showToast({
+          title: 'Success',
+          message: 'Profile updated successfully (local simulation).',
+          type: 'success',
+        })
+      );
     }, 1200);
   };
 

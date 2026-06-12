@@ -6,14 +6,15 @@ import {
   TouchableOpacity, 
   ScrollView, 
   KeyboardAvoidingView, 
-  Platform,
-  Alert
+  Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Input from '../../../components/Input';
 import Button from '../../../components/Button';
 import { useCreateTenantMutation } from '../superadminApi';
 import { useThemeColors } from '../../../hooks/useThemeColors';
+import { useAppDispatch } from '../../../store/store';
+import { showToast } from '../../../store/toastSlice';
 
 interface AddOwnerModalProps {
   visible: boolean;
@@ -21,6 +22,7 @@ interface AddOwnerModalProps {
 }
 
 export default function AddOwnerModal({ visible, onClose }: AddOwnerModalProps) {
+  const dispatch = useAppDispatch();
   const { muted } = useThemeColors();
   const [createTenant, { isLoading: isCreating }] = useCreateTenantMutation();
 
@@ -52,7 +54,13 @@ export default function AddOwnerModal({ visible, onClose }: AddOwnerModalProps) 
         setEmail('');
         setPassword('');
         onClose();
-        Alert.alert('Success', 'Kitchen owner account successfully created!');
+        dispatch(
+          showToast({
+            title: 'Success',
+            message: 'Kitchen owner account successfully created!',
+            type: 'success',
+          })
+        );
       }
     } catch (err: any) {
       setFormError(err.data?.error || 'Failed to create owner. Make sure email is unique.');

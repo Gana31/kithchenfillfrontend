@@ -5,8 +5,7 @@ import {
   ScrollView, 
   TouchableOpacity, 
   ActivityIndicator,
-  TextInput,
-  Alert
+  TextInput
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -17,8 +16,11 @@ import { useGetIngredientsQuery, useUpdateIngredientMutation, IngredientData } f
 import IngredientCard from './components/IngredientCard';
 import AddIngredientModal from './components/AddIngredientModal';
 import AdjustStockModal from './components/AdjustStockModal';
+import { useAppDispatch } from '../../store/store';
+import { showToast } from '../../store/toastSlice';
 
 export default function InventoryScreen({ navigation }: any) {
+  const dispatch = useAppDispatch();
   const insets = useSafeAreaInsets();
   const { primary, danger, muted, isDark } = useThemeColors();
   
@@ -30,16 +32,16 @@ export default function InventoryScreen({ navigation }: any) {
   const [adjustingIngredient, setAdjustingIngredient] = useState<IngredientData | null>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   // Fetch ingredients from API
   const { data, isLoading, error, refetch } = useGetIngredientsQuery();
   const [updateIngredient] = useUpdateIngredientMutation();
 
-  const handleStepAdjust = async (ingredient: IngredientData, type: 'add' | 'deduct', amount: number) => {
+  const handleStepAdjust = async (ingredient: IngredientData, type: 'add' | 'deduct', baseAdjustment: number) => {
+    setUpdatingId(ingredient._id);
     const ratio = ingredient.unitRelation.conversionRatio;
     let newBaseQuantity = ingredient.currentStock;
-
-    const baseAdjustment = amount * ratio;
 
     if (type === 'add') {
       newBaseQuantity += baseAdjustment;
@@ -61,7 +63,15 @@ export default function InventoryScreen({ navigation }: any) {
         }
       }).unwrap();
     } catch (err: any) {
-      Alert.alert('Adjustment Failed', err.data?.error || 'Failed to update stock.');
+      dispatch(
+        showToast({
+          title: 'Adjustment Failed',
+          message: err.data?.error || 'Failed to update stock.',
+          type: 'error',
+        })
+      );
+    } finally {
+      setUpdatingId(null);
     }
   };
 
@@ -177,6 +187,7 @@ export default function InventoryScreen({ navigation }: any) {
               <IngredientCard 
                 key={item._id} 
                 ingredient={item} 
+                isUpdating={updatingId === item._id}
                 onEdit={() => {
                   setEditingIngredient(item);
                   setIsModalVisible(true);
@@ -185,7 +196,7 @@ export default function InventoryScreen({ navigation }: any) {
                   setAdjustingIngredient(item);
                   setIsAdjustModalVisible(true);
                 }}
-                onStepAdjust={(type, amount) => handleStepAdjust(item, type, amount)}
+                onStepAdjust={(type, baseAmount) => handleStepAdjust(item, type, baseAmount)}
               />
             ))}
           </View>

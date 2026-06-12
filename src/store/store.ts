@@ -3,6 +3,7 @@ import { setupListeners } from '@reduxjs/toolkit/query';
 import { TypedUseSelectorHook, useDispatch, useSelector } from 'react-redux';
 import authReducer from '../features/auth/authSlice';
 import themeReducer from './themeSlice';
+import toastReducer from './toastSlice';
 import { baseApi } from '../services/api';
 
 /**
@@ -14,6 +15,8 @@ export const store = configureStore({
     auth: authReducer,
     // Add theme slice reducer
     theme: themeReducer,
+    // Add toast slice reducer
+    toast: toastReducer,
     // Add RTK Query base API slice reducer
     [baseApi.reducerPath]: baseApi.reducer,
   },
