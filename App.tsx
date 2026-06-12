@@ -26,6 +26,8 @@ import CounterScreen from './src/features/sales/CounterScreen';
 import BlobBackground from './src/components/BlobBackground';
 import ProfileScreen from './src/features/profile/ProfileScreen';
 import Toast from './src/components/Toast';
+import * as Updates from 'expo-updates';
+import { showToast } from './src/store/toastSlice';
 import './global.css'; // Import compiled TailwindCSS global styles
 
 const Stack = createNativeStackNavigator();
@@ -160,6 +162,7 @@ function OwnerNavigator() {
 
 function RootApp() {
   const dispatch = useAppDispatch();
+  const { isUpdatePending } = Updates.useUpdates();
   
   // 1. Listen for system color scheme changes at runtime
   const systemColorScheme = useColorScheme();
@@ -176,6 +179,23 @@ function RootApp() {
   
   // 5. Select authentication loading state
   const isAuthLoading = useAppSelector(selectAuthLoading);
+
+  // Listen for OTA updates and trigger auto-reload
+  useEffect(() => {
+    if (isUpdatePending) {
+      dispatch(
+        showToast({
+          title: 'Update Ready',
+          message: 'A new version is ready. Restarting app to apply...',
+          type: 'info',
+        })
+      );
+      const timer = setTimeout(() => {
+        Updates.reloadAsync();
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [isUpdatePending, dispatch]);
 
   // Load saved theme and auth session from storage on mount
   useEffect(() => {

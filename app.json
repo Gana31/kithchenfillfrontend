@@ -31,6 +31,12 @@
         "projectId": "0b92faa8-51cd-4433-bf2d-149f26145967"
       }
     },
-    "owner": "ganesh123456"
+    "owner": "ganesh123456",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/0b92faa8-51cd-4433-bf2d-149f26145967"
+    }
   }
 }
