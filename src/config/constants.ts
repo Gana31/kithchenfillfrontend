@@ -4,7 +4,7 @@ const PRODUCTION_API_URL = 'https://kitchenfillbackend.vercel.app/api';
 const LOCAL_API_URL = 'http://192.168.1.11:3000/api';
 
 // Set to true to use the production Vercel backend, or false to use the local dev backend
-const FORCE_PRODUCTION_API = true; 
+const FORCE_PRODUCTION_API = false; 
 
 export const API_BASE_URL = 
   process.env.EXPO_PUBLIC_API_URL || 

@@ -85,7 +85,7 @@ export const inventoryApi = baseApi.injectEndpoints({
       query: () => '/ingredients/upload-signature',
     }),
   }),
-  overrideExisting: false,
+  overrideExisting: true,
 });
 
 export const {

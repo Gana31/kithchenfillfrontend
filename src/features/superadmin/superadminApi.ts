@@ -38,7 +38,7 @@ export const superadminApi = baseApi.injectEndpoints({
       invalidatesTags: ['Tenant'],
     }),
   }),
-  overrideExisting: false,
+  overrideExisting: true,
 });
 
 export const {
