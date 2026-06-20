@@ -13,10 +13,19 @@
       "android": {
         "buildType": "apk"
       },
-      "channel": "preview"
+      "channel": "preview",
+      "env": {
+        "EXPO_USE_MINIFY": "1"
+      }
     },
     "production": {
-      "channel": "production"
+      "channel": "production",
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_USE_MINIFY": "1"
+      }
     }
   },
   "submit": {

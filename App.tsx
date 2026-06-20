@@ -1,5 +1,7 @@
+import 'react-native-gesture-handler';
 import React, { useEffect } from 'react';
 import { useColorScheme, Appearance, View, Text, TouchableOpacity } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Provider } from 'react-redux';
@@ -16,7 +18,6 @@ import { DEV_THEME_OVERRIDE } from './src/config/constants';
 import { createBottomTabNavigator, BottomTabHeaderProps } from '@react-navigation/bottom-tabs';
 import { useNavigationState } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
 import CustomTabBar from './src/components/CustomTabBar';
 import SuperadminDashboardScreen from './src/features/superadmin/SuperadminDashboardScreen';
 import ManageOwnersScreen from './src/features/superadmin/ManageOwnersScreen';
@@ -26,7 +27,6 @@ import CounterScreen from './src/features/sales/CounterScreen';
 import BlobBackground from './src/components/BlobBackground';
 import ProfileScreen from './src/features/profile/ProfileScreen';
 import Toast from './src/components/Toast';
-import * as Updates from 'expo-updates';
 import { showToast } from './src/store/toastSlice';
 import './global.css'; // Import compiled TailwindCSS global styles
 
@@ -107,7 +107,7 @@ function CustomHeader({ options, route, navigation }: BottomTabHeaderProps) {
           </Text>
         </View>
         <View className="flex-row items-center">
-          {options.headerRight?.({ canGoBack: navigation.canGoBack() })}
+          {options.headerRight?.({ canGoBack: typeof navigation.canGoBack === 'function' ? navigation.canGoBack() : false })}
         </View>
       </View>
     </View>
@@ -119,19 +119,21 @@ function SuperadminNavigator() {
   return (
     <View style={{ flex: 1, backgroundColor: isDark ? '#09090A' : '#FFFFFF' }}>
       <BlobBackground />
-      <Tab.Navigator
-        tabBar={(props) => <CustomTabBar {...props} />}
-        screenOptions={{
-          headerShown: true,
-          header: (props) => <CustomHeader {...props} />,
-          animation: 'shift',
-          sceneStyle: { backgroundColor: 'transparent' }
-        }}
-      >
-        <Tab.Screen name="Dashboard" component={SuperadminDashboardScreen} />
-        <Tab.Screen name="Owners" component={ManageOwnersScreen} />
-        <Tab.Screen name="Profile" component={ProfileScreen} />
-      </Tab.Navigator>
+      <View style={{ flex: 1, zIndex: 1, elevation: 1 }}>
+        <Tab.Navigator
+          tabBar={(props) => <CustomTabBar {...props} />}
+          screenOptions={{
+            headerShown: true,
+            header: (props) => <CustomHeader {...props} />,
+            animation: 'shift',
+            sceneStyle: { flex: 1, backgroundColor: 'transparent' },
+          }}
+        >
+          <Tab.Screen name="Dashboard" component={SuperadminDashboardScreen} />
+          <Tab.Screen name="Owners" component={ManageOwnersScreen} />
+          <Tab.Screen name="Profile" component={ProfileScreen} />
+        </Tab.Navigator>
+      </View>
     </View>
   );
 }
@@ -141,28 +143,29 @@ function OwnerNavigator() {
   return (
     <View style={{ flex: 1, backgroundColor: isDark ? '#09090A' : '#FFFFFF' }}>
       <BlobBackground />
-      <Tab.Navigator
-        tabBar={(props) => <CustomTabBar {...props} />}
-        screenOptions={{
-          headerShown: true,
-          header: (props) => <CustomHeader {...props} />,
-          animation: 'shift',
-          sceneStyle: { backgroundColor: 'transparent' }
-        }}
-      >
-      <Tab.Screen name="Dashboard" component={DashboardScreen} />
-      <Tab.Screen name="Inventory" component={InventoryScreen} />
-      <Tab.Screen name="Recipes" component={RecipeBuilderScreen} />
-      <Tab.Screen name="Counter" component={CounterScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
-    </Tab.Navigator>
+      <View style={{ flex: 1, zIndex: 1, elevation: 1 }}>
+        <Tab.Navigator
+          tabBar={(props) => <CustomTabBar {...props} />}
+          screenOptions={{
+            headerShown: true,
+            header: (props) => <CustomHeader {...props} />,
+            animation: 'shift',
+            sceneStyle: { flex: 1, backgroundColor: 'transparent' },
+          }}
+        >
+          <Tab.Screen name="Dashboard" component={DashboardScreen} />
+          <Tab.Screen name="Inventory" component={InventoryScreen} />
+          <Tab.Screen name="Recipes" component={RecipeBuilderScreen} />
+          <Tab.Screen name="Counter" component={CounterScreen} />
+          <Tab.Screen name="Profile" component={ProfileScreen} />
+        </Tab.Navigator>
+      </View>
     </View>
   );
 }
 
 function RootApp() {
   const dispatch = useAppDispatch();
-  const { isUpdatePending } = Updates.useUpdates();
   
   // 1. Listen for system color scheme changes at runtime
   const systemColorScheme = useColorScheme();
@@ -180,22 +183,35 @@ function RootApp() {
   // 5. Select authentication loading state
   const isAuthLoading = useAppSelector(selectAuthLoading);
 
-  // Listen for OTA updates and trigger auto-reload
+  // Safely check for OTA updates — this is a no-op in Expo Go dev mode
   useEffect(() => {
-    if (isUpdatePending) {
-      dispatch(
-        showToast({
-          title: 'Update Ready',
-          message: 'A new version is ready. Restarting app to apply...',
-          type: 'info',
-        })
-      );
-      const timer = setTimeout(() => {
-        Updates.reloadAsync();
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [isUpdatePending, dispatch]);
+    const checkOtaUpdate = async () => {
+      try {
+        // This will throw in Expo Go; caught silently so app doesn't crash
+        const { isAvailable } = await (await import('expo-updates')).checkForUpdateAsync();
+        if (isAvailable) {
+          const { isNew } = await (await import('expo-updates')).fetchUpdateAsync();
+          if (isNew) {
+            dispatch(
+              showToast({
+                title: 'Update Ready',
+                message: 'A new version is ready. Restarting app to apply...',
+                type: 'info',
+              })
+            );
+            setTimeout(async () => {
+              try {
+                await (await import('expo-updates')).reloadAsync();
+              } catch (_) {}
+            }, 3000);
+          }
+        }
+      } catch (_) {
+        // Silently ignore: expo-updates not available in Expo Go
+      }
+    };
+    checkOtaUpdate();
+  }, [dispatch]);
 
   // Load saved theme and auth session from storage on mount
   useEffect(() => {
@@ -232,9 +248,10 @@ function RootApp() {
   };
 
   return (
-    <SafeAreaProvider>
-      <View className={isDark ? 'dark flex-1' : 'flex-1'}>
-        <NavigationContainer theme={navTheme}>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <View className={isDark ? 'dark flex-1' : 'flex-1'}>
+          <NavigationContainer theme={navTheme}>
           <Stack.Navigator
             screenOptions={{
               headerShown: false,
@@ -266,8 +283,9 @@ function RootApp() {
           </Stack.Navigator>
         </NavigationContainer>
         <Toast />
-      </View>
-    </SafeAreaProvider>
+        </View>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 

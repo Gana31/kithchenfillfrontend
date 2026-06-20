@@ -1,7 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform, Animated } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppSelector } from '../store/store';
@@ -148,13 +147,7 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
         }
       ]}
     >
-      <BlurView
-        intensity={95}
-        tint={isDark ? 'dark' : 'light'}
-        experimentalBlurMethod="none"
-        style={styles.blurContainer}
-      >
-        <View className="flex-row justify-around items-center w-full px-2 py-3">
+      <View className="flex-row justify-around items-center w-full px-2 py-3">
           {state.routes.map((route, index) => {
             const { options } = descriptors[route.key];
             const label =
@@ -173,7 +166,17 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
                 canPreventDefault: true,
               });
 
-              if (!isFocused && !event.defaultPrevented) {
+              if (isFocused) {
+                if (route.name === 'Inventory') {
+                  (navigation as { emit: (event: { type: string; target: string }) => void }).emit({
+                    type: 'inventoryTabRepress',
+                    target: route.key,
+                  });
+                }
+                return;
+              }
+
+              if (!event.defaultPrevented) {
                 navigation.navigate(route.name, route.params);
               }
             };
@@ -199,7 +202,6 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
             );
           })}
         </View>
-      </BlurView>
     </View>
   );
 }
@@ -209,15 +211,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 20,
     right: 20,
-    borderRadius: 24, // capsule pill look
+    borderRadius: 24,
     overflow: 'hidden',
     borderWidth: 1.5,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.15,
     shadowRadius: 12,
     elevation: 8,
-  },
-  blurContainer: {
-    width: '100%',
   },
 });

@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { 
   View, 
   Text, 
-  ScrollView, 
   TouchableOpacity, 
-  ActivityIndicator
+  ActivityIndicator,
+  LayoutChangeEvent,
 } from 'react-native';
+import { ScrollView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { 
@@ -32,6 +33,19 @@ export default function ManageOwnersScreen({ navigation }: any) {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [scrollAreaHeight, setScrollAreaHeight] = useState(0);
+
+  const onScrollAreaLayout = useCallback((event: LayoutChangeEvent) => {
+    setScrollAreaHeight(event.nativeEvent.layout.height);
+  }, []);
+
+  const scrollContentStyle = useMemo(
+    () => ({
+      paddingBottom: insets.bottom + 120,
+      ...(scrollAreaHeight > 0 ? { minHeight: scrollAreaHeight } : null),
+    }),
+    [insets.bottom, scrollAreaHeight]
+  );
 
   React.useLayoutEffect(() => {
     navigation.setOptions({
@@ -108,13 +122,17 @@ export default function ManageOwnersScreen({ navigation }: any) {
             </TouchableOpacity>
           </View>
         ) : (
-          <ScrollView
-            contentContainerStyle={{ paddingBottom: insets.bottom + 120 }}
-            className="flex-1"
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            scrollEventThrottle={16}
-          >
+          <View className="flex-1" onLayout={onScrollAreaLayout} collapsable={false}>
+            <ScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={scrollContentStyle}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              nestedScrollEnabled
+              alwaysBounceVertical
+              overScrollMode="always"
+              scrollEventThrottle={16}
+            >
             {filteredTenants.length === 0 ? (
               <Card className="p-8 items-center justify-center">
                 <Text className="text-muted dark:text-muted-dark text-xs font-bold text-center">
@@ -133,7 +151,8 @@ export default function ManageOwnersScreen({ navigation }: any) {
                 ))}
               </View>
             )}
-          </ScrollView>
+            </ScrollView>
+          </View>
         )}
       </View>
 

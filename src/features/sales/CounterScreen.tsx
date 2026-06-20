@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import Card from '../../components/Card';
 import Button from '../../components/Button';
@@ -8,10 +7,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors } from '../../hooks/useThemeColors';
 import { useAppDispatch } from '../../store/store';
 import { showToast } from '../../store/toastSlice';
+import ScreenContainer from '../../components/ScreenContainer';
 
 export default function CounterScreen({ navigation }: any) {
   const dispatch = useAppDispatch();
-  const insets = useSafeAreaInsets();
   const { primary, danger, isDark } = useThemeColors();
   const [todaysTotal, setTodaysTotal] = useState(0);
 
@@ -51,18 +50,9 @@ export default function CounterScreen({ navigation }: any) {
   };
 
   return (
-    <View 
-      className="flex-1 bg-transparent" 
-    >
+    <>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-
-      <ScrollView 
-        contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: insets.bottom + 100 }}
-        className="flex-1"
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        scrollEventThrottle={16}
-      >
+      <ScreenContainer scrollable contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 16 }}>
         {/* Counter Summary */}
         <Card className="mb-6 p-5">
           <View className="flex-row justify-between items-start">
@@ -135,7 +125,7 @@ export default function CounterScreen({ navigation }: any) {
           />
         </Card>
 
-      </ScrollView>
-    </View>
+      </ScreenContainer>
+    </>
   );
 }

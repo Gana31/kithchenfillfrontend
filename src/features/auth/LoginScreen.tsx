@@ -69,7 +69,7 @@ export default function LoginScreen() {
             {/* Logo & Header */}
             <View className="items-center mb-8">
               <Image
-                source={require('../../../assets/logo.png')}
+                source={require('../../../assets/logo-sm.png')}
                 className="w-20 h-20 rounded-2xl"
                 resizeMode="contain"
               />

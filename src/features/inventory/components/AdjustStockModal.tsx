@@ -38,8 +38,9 @@ export default function AdjustStockModal({ visible, onClose, ingredient }: Adjus
 
   if (!ingredient) return null;
 
-  const ratio = ingredient.unitRelation.conversionRatio;
-  const baseUnit = ingredient.unitRelation.baseUnit;
+  const unitRelation = ingredient.unitRelation || { baseUnit: 'g', conversionRatio: 1000, purchaseUnit: 'kg' };
+  const ratio = unitRelation.conversionRatio;
+  const baseUnit = unitRelation.baseUnit;
 
   // Formatted stock display
   const formatStock = (stock: number, unit: string) => {

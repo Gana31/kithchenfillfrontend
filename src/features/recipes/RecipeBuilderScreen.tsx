@@ -1,16 +1,15 @@
 import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Platform } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import Card from '../../components/Card';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors } from '../../hooks/useThemeColors';
 import { useAppDispatch } from '../../store/store';
 import { showToast } from '../../store/toastSlice';
+import ScreenContainer from '../../components/ScreenContainer';
 
 export default function RecipeBuilderScreen({ navigation }: any) {
   const dispatch = useAppDispatch();
-  const insets = useSafeAreaInsets();
   const { primary, muted, isDark } = useThemeColors();
 
   React.useLayoutEffect(() => {
@@ -44,19 +43,9 @@ export default function RecipeBuilderScreen({ navigation }: any) {
   ];
 
   return (
-    <View 
-      className="flex-1 bg-transparent" 
-    >
+    <>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-
-      <ScrollView 
-        contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: insets.bottom + 120 }}
-        className="flex-1"
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        scrollEventThrottle={16}
-      >
-
+      <ScreenContainer scrollable bottomInset={120} contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 16 }}>
         {/* Info card */}
         <Card className="mb-6 bg-primary/10 border-primary/20">
           <View className="flex-row items-center space-x-3">
@@ -113,7 +102,7 @@ export default function RecipeBuilderScreen({ navigation }: any) {
             </Card>
           ))}
         </View>
-      </ScrollView>
-    </View>
+      </ScreenContainer>
+    </>
   );
 }

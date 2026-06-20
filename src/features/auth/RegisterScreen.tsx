@@ -77,7 +77,7 @@ export default function RegisterScreen() {
             {/* Logo & Header */}
             <View className="items-center mb-8">
               <Image
-                source={require('../../../assets/logo.png')}
+                source={require('../../../assets/logo-sm.png')}
                 className="w-20 h-20 rounded-2xl animate-fade-in"
                 resizeMode="contain"
               />

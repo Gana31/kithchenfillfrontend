@@ -1,15 +1,14 @@
 import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useAppDispatch, useAppSelector } from '../../store/store';
 import { logoutUser, selectCurrentUser } from '../auth/authSlice';
 import { selectIsDark } from '../../store/themeSlice';
 import Card from '../../components/Card';
 import Button from '../../components/Button';
+import ScreenContainer from '../../components/ScreenContainer';
 
 export default function DashboardScreen() {
-  const insets = useSafeAreaInsets();
   const dispatch = useAppDispatch();
   const user = useAppSelector(selectCurrentUser);
   const isDark = useAppSelector(selectIsDark);
@@ -19,20 +18,9 @@ export default function DashboardScreen() {
   };
 
   return (
-    <View 
-      className="flex-1 bg-transparent" 
-    >
+    <>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-
-      <ScrollView 
-        contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: insets.bottom + 100 }}
-        className="flex-1"
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        scrollEventThrottle={16}
-      >
-
-
+      <ScreenContainer scrollable contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 16 }}>
         {/* Aggregators Status Bar */}
         <Card className="mb-6">
           <Text className="text-xs font-black text-text dark:text-text-dark uppercase tracking-widest mb-4">
@@ -124,8 +112,7 @@ export default function DashboardScreen() {
             className="w-full"
           />
         </Card>
-
-      </ScrollView>
-    </View>
+      </ScreenContainer>
+    </>
   );
 }

@@ -1,10 +1,10 @@
 import { Platform } from 'react-native';
 
 const PRODUCTION_API_URL = 'https://kitchenfillbackend.vercel.app/api';
-const LOCAL_API_URL = 'http://192.168.1.11:3000/api';
+const LOCAL_API_URL = 'http://192.168.1.5:3000/api';
 
 // Set to true to use the production Vercel backend, or false to use the local dev backend
-const FORCE_PRODUCTION_API = true; 
+const FORCE_PRODUCTION_API = false; 
 
 export const API_BASE_URL = 
   process.env.EXPO_PUBLIC_API_URL || 
@@ -43,6 +43,6 @@ export const COLORS = {
  * Set this to 'dark' or 'light' to force the theme during development/testing.
  * Set to null to follow the user preference / system settings.
  */
-export const DEV_THEME_OVERRIDE: 'dark' | 'light' | null = 'dark';
+export const DEV_THEME_OVERRIDE: 'dark' | 'light' | null = null;
 
 

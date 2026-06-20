@@ -76,6 +76,8 @@ import { DEV_THEME_OVERRIDE } from '../config/constants';
 
 export const { setSystemIsDark } = themeSlice.actions;
 
+export const selectThemePreference = (state: { theme: ThemeState }) => state.theme.theme;
+
 // Selector to check if dark mode is active (based on theme preference or system default, with dev override)
 export const selectIsDark = (state: { theme: ThemeState }) => {
   if (DEV_THEME_OVERRIDE) {

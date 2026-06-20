@@ -60,7 +60,7 @@ export default function SplashScreen({ navigation }: { navigation?: any }) {
       {/* App Logo Container */}
       <View className="items-center justify-center mb-8">
         <Image
-          source={require('../../../assets/logo.png')}
+          source={require('../../../assets/logo-sm.png')}
           className="w-48 h-48 rounded-3xl"
           resizeMode="contain"
         />

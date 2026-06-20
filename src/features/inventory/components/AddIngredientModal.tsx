@@ -21,6 +21,7 @@ import {
   IngredientData 
 } from '../inventoryApi';
 import { useThemeColors } from '../../../hooks/useThemeColors';
+import { compressImageForUpload } from '../../../utils/compressImage';
 import { useAppDispatch } from '../../../store/store';
 import { showToast } from '../../../store/toastSlice';
 
@@ -64,6 +65,7 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
   // Image upload state
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isCompressing, setIsCompressing] = useState(false);
 
   // Pre-populate form values when editing
   useEffect(() => {
@@ -71,7 +73,8 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
       setName(ingredient.name);
       setCategory(ingredient.category || 'Pantry');
       
-      const purchaseUnit = ingredient.unitRelation.purchaseUnit;
+      const unitRelation = ingredient.unitRelation || { baseUnit: 'g', conversionRatio: 1000, purchaseUnit: 'kg' };
+      const purchaseUnit = unitRelation.purchaseUnit;
       let cat: UnitCategory = 'weight';
       if (purchaseUnit === 'liter') {
         cat = 'volume';
@@ -80,10 +83,17 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
       }
       setUnitCategory(cat);
 
-      const ratio = ingredient.unitRelation.conversionRatio;
+      const ratio = unitRelation.conversionRatio;
       setMinThresholdInput((ingredient.minThreshold / ratio).toString());
       setInitialQtyInput((ingredient.currentStock / ratio).toString());
-      setPurchaseCostInput('0');
+
+      const latestBatch = ingredient.batches?.[ingredient.batches.length - 1];
+      if (latestBatch?.costPerBaseUnit) {
+        setPurchaseCostInput((latestBatch.costPerBaseUnit * ratio).toString());
+      } else {
+        setPurchaseCostInput('');
+      }
+
       setSelectedImage(ingredient.image);
     } else {
       setName('');
@@ -113,7 +123,16 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setSelectedImage(result.assets[0].uri);
+        setIsCompressing(true);
+        try {
+          const compressedUri = await compressImageForUpload(result.assets[0].uri);
+          setSelectedImage(compressedUri);
+        } catch (err) {
+          console.error('Compress image error:', err);
+          dispatch(showToast({ message: 'Failed to compress image.', type: 'error', title: 'Error' }));
+        } finally {
+          setIsCompressing(false);
+        }
       }
     } catch (err) {
       console.error('Pick image error:', err);
@@ -215,7 +234,8 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
             baseUnit,
             conversionRatio: ratio,
             currentStock: baseQuantity,
-            image: uploadedImageUrl !== undefined ? uploadedImageUrl : (selectedImage || undefined)
+            image: uploadedImageUrl !== undefined ? uploadedImageUrl : (selectedImage || undefined),
+            purchaseUnitPrice: purchaseCostInput ? Number(purchaseCostInput) : 0,
           }
         }).unwrap();
 
@@ -343,12 +363,21 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
                   <TouchableOpacity
                     onPress={pickImage}
                     activeOpacity={0.7}
+                    disabled={isCompressing}
                     className="w-full h-32 rounded-2xl border border-dashed border-border dark:border-border-dark bg-border/10 justify-center items-center"
                   >
-                    <Ionicons name="camera-outline" size={28} color={muted} />
-                    <Text className="text-xs font-semibold text-muted dark:text-muted-dark mt-2">
-                      Upload from Gallery
-                    </Text>
+                    {isCompressing ? (
+                      <Text className="text-xs font-semibold text-muted dark:text-muted-dark">
+                        Compressing image...
+                      </Text>
+                    ) : (
+                      <>
+                        <Ionicons name="camera-outline" size={28} color={muted} />
+                        <Text className="text-xs font-semibold text-muted dark:text-muted-dark mt-2">
+                          Upload from Gallery
+                        </Text>
+                      </>
+                    )}
                   </TouchableOpacity>
                 )}
               </View>
@@ -459,22 +488,28 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
                 keyboardType="numeric"
               />
 
-              {!ingredient && (
-                <Input
-                  label="Total Purchase Cost (₹)"
-                  placeholder="e.g. 1200"
-                  value={purchaseCostInput}
-                  onChangeText={setPurchaseCostInput}
-                  keyboardType="numeric"
-                />
-              )}
+              <Input
+                label={ingredient ? `Purchase Price (₹ per ${label})` : 'Total Purchase Cost (₹)'}
+                placeholder={ingredient ? `e.g. 120` : 'e.g. 1200'}
+                value={purchaseCostInput}
+                onChangeText={setPurchaseCostInput}
+                keyboardType="numeric"
+              />
             </ScrollView>
 
             {/* Submit Button */}
             <Button
-              label={isUploading ? "Uploading Image..." : (ingredient ? "Save Changes" : "Add Ingredient")}
+              label={
+                isCompressing
+                  ? 'Compressing Image...'
+                  : isUploading
+                    ? 'Uploading Image...'
+                    : ingredient
+                      ? 'Save Changes'
+                      : 'Add Ingredient'
+              }
               onPress={handleCreateOrUpdate}
-              loading={isCreating || isUpdating || isUploading || isFetchingSignature}
+              loading={isCreating || isUpdating || isUploading || isFetchingSignature || isCompressing}
               className="mt-4 shadow-lg shadow-primary/20"
             />
           </View>

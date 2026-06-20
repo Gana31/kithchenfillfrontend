@@ -1,6 +1,5 @@
 import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useAppDispatch, useAppSelector } from '../../store/store';
 import { logoutUser, selectCurrentUser } from '../auth/authSlice';
@@ -8,9 +7,9 @@ import { useGetTenantsQuery } from './superadminApi';
 import Card from '../../components/Card';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors } from '../../hooks/useThemeColors';
+import ScreenContainer from '../../components/ScreenContainer';
 
 export default function SuperadminDashboardScreen() {
-  const insets = useSafeAreaInsets();
   const dispatch = useAppDispatch();
   const user = useAppSelector(selectCurrentUser);
   const { primary, isDark } = useThemeColors();
@@ -28,18 +27,9 @@ export default function SuperadminDashboardScreen() {
   const deactivatedTenants = totalTenants - activeTenants;
 
   return (
-    <View 
-      className="flex-1" 
-    >
+    <>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-
-      <ScrollView 
-        contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: insets.bottom + 100 }}
-        className="flex-1"
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        scrollEventThrottle={16}
-      >
+      <ScreenContainer scrollable contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 16 }}>
 
 
         {/* Dashboard Banner */}
@@ -177,7 +167,7 @@ export default function SuperadminDashboardScreen() {
             )}
           </>
         )}
-      </ScrollView>
-    </View>
+      </ScreenContainer>
+    </>
   );
 }

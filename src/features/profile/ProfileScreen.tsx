@@ -1,23 +1,130 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useAppDispatch, useAppSelector } from '../../store/store';
 import { logoutUser, selectCurrentUser } from '../auth/authSlice';
 import { showToast } from '../../store/toastSlice';
+import { changeTheme, selectThemePreference, ThemePreference } from '../../store/themeSlice';
 import Card from '../../components/Card';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors } from '../../hooks/useThemeColors';
 import ConfirmModal from '../../components/ConfirmModal';
+import ScreenContainer from '../../components/ScreenContainer';
+import * as Updates from 'expo-updates';
 
 export default function ProfileScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
   const dispatch = useAppDispatch();
   const user = useAppSelector(selectCurrentUser);
-  const { primary, danger, isDark } = useThemeColors();
+  const themePreference = useAppSelector(selectThemePreference);
+  const { primary, danger, muted, isDark } = useThemeColors();
   const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
+
+  // OTA Updates State
+  const [checking, setChecking] = useState(false);
+  const [updating, setUpdating] = useState(false);
+  const [updateStatus, setUpdateStatus] = useState(Updates.isEnabled ? 'Idle' : 'Disabled');
+  const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
+
+  const currentUpdateId = Updates.updateId || null;
+  const currentChannel = Updates.channel || 'Development';
+
+  const handleCheckForUpdates = async () => {
+    if (!Updates.isEnabled) {
+      dispatch(
+        showToast({
+          title: 'Not Supported',
+          message: 'OTA Updates are disabled in development mode or Expo Go.',
+          type: 'info',
+        })
+      );
+      return;
+    }
+
+    if (isUpdateAvailable) {
+      setUpdating(true);
+      setUpdateStatus('Downloading...');
+      try {
+        const result = await Updates.fetchUpdateAsync();
+        if (result.isNew) {
+          setUpdateStatus('Applying...');
+          dispatch(
+            showToast({
+              title: 'Update Downloaded',
+              message: 'Restarting app to apply the new update...',
+              type: 'success',
+            })
+          );
+          setTimeout(async () => {
+            await Updates.reloadAsync();
+          }, 2000);
+        } else {
+          setUpdateStatus('Up to Date');
+          setIsUpdateAvailable(false);
+          dispatch(
+            showToast({
+              title: 'Already Up to Date',
+              message: 'No new updates found.',
+              type: 'info',
+            })
+          );
+        }
+      } catch (err: any) {
+        setUpdateStatus('Error');
+        dispatch(
+          showToast({
+            title: 'Update Failed',
+            message: err.message || 'Failed to download update.',
+            type: 'error',
+          })
+        );
+      } finally {
+        setUpdating(false);
+      }
+      return;
+    }
+
+    setChecking(true);
+    setUpdateStatus('Checking...');
+    try {
+      const updateCheck = await Updates.checkForUpdateAsync();
+      if (updateCheck.isAvailable) {
+        setIsUpdateAvailable(true);
+        setUpdateStatus('Available');
+        dispatch(
+          showToast({
+            title: 'Update Available',
+            message: 'A new update is ready for download.',
+            type: 'success',
+          })
+        );
+      } else {
+        setIsUpdateAvailable(false);
+        setUpdateStatus('Up to Date');
+        dispatch(
+          showToast({
+            title: 'Up to Date',
+            message: 'You are running the latest version of the app.',
+            type: 'success',
+          })
+        );
+      }
+    } catch (err: any) {
+      setUpdateStatus('Error');
+      dispatch(
+        showToast({
+          title: 'Check Failed',
+          message: err.message || 'Failed to check for updates.',
+          type: 'error',
+        })
+      );
+    } finally {
+      setChecking(false);
+    }
+  };
 
   React.useLayoutEffect(() => {
     navigation.setOptions({
@@ -40,6 +147,14 @@ export default function ProfileScreen({ navigation }: any) {
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
   const [isUpdating, setIsUpdating] = useState(false);
+
+  const activeTheme: 'light' | 'dark' =
+    themePreference === 'system' ? (isDark ? 'dark' : 'light') : themePreference;
+
+  const handleThemeChange = (theme: 'light' | 'dark') => {
+    if (theme === activeTheme && themePreference !== 'system') return;
+    dispatch(changeTheme(theme));
+  };
 
   const handleUpdateProfile = () => {
     if (!name || !email) {
@@ -70,16 +185,9 @@ export default function ProfileScreen({ navigation }: any) {
   };
 
   return (
-    <View className="flex-1 bg-transparent">
+    <>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-
-      <ScrollView
-        contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: insets.bottom + 100 }}
-        className="flex-1"
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        scrollEventThrottle={16}
-      >
+      <ScreenContainer scrollable contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 16 }}>
         {/* User Card with Avatar */}
         <Card className="mb-6 items-center py-6">
           <View className="w-20 h-20 rounded-full bg-primary/10 border border-primary/20 items-center justify-center mb-3">
@@ -125,6 +233,98 @@ export default function ProfileScreen({ navigation }: any) {
           />
         </Card>
 
+        <Text className="text-lg font-black text-text dark:text-text-dark mb-4">
+          Appearance
+        </Text>
+
+        <Card className="mb-6 p-5">
+          <Text className="text-xs text-muted dark:text-muted-dark font-bold uppercase tracking-wider mb-3">
+            Theme
+          </Text>
+          <View className="flex-row bg-border/10 dark:bg-border-dark/10 border border-border dark:border-border-dark rounded-2xl p-1">
+            {(['light', 'dark'] as const).map((theme) => {
+              const selected = activeTheme === theme;
+              return (
+                <TouchableOpacity
+                  key={theme}
+                  onPress={() => handleThemeChange(theme)}
+                  activeOpacity={0.8}
+                  className={`flex-1 flex-row items-center justify-center py-3 rounded-xl ${
+                    selected ? 'bg-primary/15 border border-primary/25' : ''
+                  }`}
+                >
+                  <Ionicons
+                    name={theme === 'dark' ? 'moon-outline' : 'sunny-outline'}
+                    size={16}
+                    color={selected ? primary : muted}
+                    style={{ marginRight: 6 }}
+                  />
+                  <Text
+                    className={`text-xs font-black uppercase tracking-wider ${
+                      selected ? 'text-primary' : 'text-muted dark:text-muted-dark'
+                    }`}
+                  >
+                    {theme}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          <Text className="text-[10px] text-muted dark:text-muted-dark mt-3 leading-relaxed">
+            Your theme choice is saved on this device and stays selected when you reopen the app.
+          </Text>
+        </Card>
+
+        {/* App Updates Section */}
+        <Text className="text-lg font-black text-text dark:text-text-dark mb-4">
+          App Update
+        </Text>
+        <Card className="mb-6 p-5">
+          <View className="flex-row justify-between items-center mb-4">
+            <View className="flex-1 mr-4">
+              <Text className="text-xs text-muted dark:text-muted-dark font-bold uppercase tracking-wider">
+                Current Version / Channel
+              </Text>
+              <Text className="text-sm font-black text-text dark:text-text-dark mt-1">
+                1.0.0 ({currentChannel})
+              </Text>
+              {currentUpdateId ? (
+                <Text className="text-[10px] text-muted dark:text-muted-dark mt-0.5">
+                  ID: {currentUpdateId}
+                </Text>
+              ) : null}
+            </View>
+            <View className={`px-2.5 py-1 rounded-full ${
+              updateStatus === 'Available' ? 'bg-primary/10 border border-primary/25' :
+              updateStatus === 'Up to Date' ? 'bg-emerald-500/10 border border-emerald-500/25' :
+              'bg-border/20 border border-border dark:border-border-dark'
+            }`}>
+              <Text className={`text-[10px] font-black uppercase tracking-wider ${
+                updateStatus === 'Available' ? 'text-primary' :
+                updateStatus === 'Up to Date' ? 'text-emerald-500' :
+                'text-muted dark:text-muted-dark'
+              }`}>
+                {updateStatus}
+              </Text>
+            </View>
+          </View>
+
+          {isUpdateAvailable && (
+            <View className="mb-4 bg-primary/10 border border-primary/20 p-3 rounded-xl">
+              <Text className="text-primary text-xs font-bold text-center">
+                A new update is available! Tap the button below to download and install.
+              </Text>
+            </View>
+          )}
+
+          <Button
+            label={checking ? "Checking..." : (isUpdateAvailable ? "Download & Install Update" : "Check for Updates")}
+            onPress={handleCheckForUpdates}
+            loading={checking || updating}
+            variant={isUpdateAvailable ? "primary" : "secondary"}
+          />
+        </Card>
+
         {/* Danger Zone */}
         <Text className="text-lg font-black text-text dark:text-text-dark mb-4">
           Session
@@ -150,7 +350,7 @@ export default function ProfileScreen({ navigation }: any) {
             </View>
           </TouchableOpacity>
         </Card>
-      </ScrollView>
+      </ScreenContainer>
 
       <ConfirmModal
         visible={isLogoutModalVisible}
@@ -164,6 +364,6 @@ export default function ProfileScreen({ navigation }: any) {
         }}
         onCancel={() => setIsLogoutModalVisible(false)}
       />
-    </View>
+    </>
   );
 }

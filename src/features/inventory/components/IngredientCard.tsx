@@ -1,9 +1,17 @@
 import React, { useState } from 'react';
-import { View, Text, Image, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, Image, TouchableOpacity, ActivityIndicator, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import Card from '../../../components/Card';
 import { useThemeColors } from '../../../hooks/useThemeColors';
 import { IngredientData } from '../inventoryApi';
+import {
+  getCategoryDetails,
+  formatStock,
+  formatPurchasePrice,
+  getPurchaseUnitLabel,
+  parseStepAmount,
+  getStockLevelTheme,
+  getStockLevelBorderStyle,
+} from '../inventoryUtils';
 
 interface IngredientCardProps {
   ingredient: IngredientData;
@@ -14,235 +22,111 @@ interface IngredientCardProps {
   onDelete: () => void;
 }
 
-// Robust helper function to parse user inputs (e.g. "100g", "1.5 kg", "250 ml", "2", or empty input)
-export function parseStepAmount(input: string, baseUnit: string, conversionRatio: number): number {
-  const trimmed = input.trim();
-  
-  // If input is empty, default to 1 kg / 1 L / 1 pc (which is 1000g/ml or 1 count)
-  if (!trimmed) {
-    if (baseUnit === 'g' || baseUnit === 'ml') {
-      return 1000;
-    }
-    return 1;
-  }
-
-  // Parse digits and optional units
-  const match = trimmed.match(/^([0-9.]+)\s*([a-zA-Z]*)$/);
-  if (!match) {
-    // If format is unrecognized, try parsing float directly
-    const val = parseFloat(trimmed);
-    if (isNaN(val) || val <= 0) {
-      return baseUnit === 'g' || baseUnit === 'ml' ? 1000 : 1;
-    }
-    if (baseUnit === 'g' || baseUnit === 'ml') {
-      return val * 1000; // Default to kg/L multiplier
-    }
-    return val;
-  }
-
-  const val = parseFloat(match[1]);
-  if (isNaN(val) || val <= 0) {
-    return baseUnit === 'g' || baseUnit === 'ml' ? 1000 : 1;
-  }
-
-  const unit = match[2].toLowerCase();
-  
-  // Weight units mapping
-  if (unit === 'g' || unit === 'gm' || unit === 'gram' || unit === 'grams') {
-    return val; // grams (base unit)
-  }
-  if (unit === 'kg' || unit === 'kilo' || unit === 'kilogram' || unit === 'kilograms') {
-    return val * 1000; // convert to grams
-  }
-
-  // Volume units mapping
-  if (unit === 'ml' || unit === 'milliliter' || unit === 'milliliters') {
-    return val; // ml (base unit)
-  }
-  if (unit === 'l' || unit === 'liter' || unit === 'liters') {
-    return val * 1000; // convert to ml
-  }
-
-  // Count/packaging units mapping
-  if (unit === 'pcs' || unit === 'pc' || unit === 'piece' || unit === 'pieces') {
-    return val; // pieces (base unit)
-  }
-
-  // If no unit is specified: default to kg (for weight) or L (for volume) or pcs (for count)
-  if (baseUnit === 'g' || baseUnit === 'ml') {
-    return val * 1000;
-  }
-  return val * conversionRatio;
-}
-
-export default function IngredientCard({ 
-  ingredient, 
-  isUpdating = false, 
-  onEdit, 
-  onAdjust, 
+function IngredientCard({
+  ingredient,
+  isUpdating = false,
+  onEdit,
+  onAdjust,
   onStepAdjust,
-  onDelete
+  onDelete,
 }: IngredientCardProps) {
-  const { primary, danger, muted, success } = useThemeColors();
-  const { name, currentStock, minThreshold, unitRelation, image } = ingredient;
-  const [stepAmount, setStepAmount] = useState('');
+  const { primary, danger, success, muted, text, isDark } = useThemeColors();
+  const {
+    name,
+    currentStock,
+    unitRelation = { baseUnit: 'g', conversionRatio: 1000, purchaseUnit: 'kg' },
+    image,
+  } = ingredient;
 
-  // Mapping category details
-  const getCategoryDetails = (catName?: string, itemName: string = '') => {
-    if (catName) {
-      switch (catName) {
-        case 'Meat':
-          return { type: 'Meat', icon: '🍗', bgClass: 'bg-red-500/10', textClass: 'text-red-500 dark:text-red-400' };
-        case 'Dairy':
-          return { type: 'Dairy', icon: '🥛', bgClass: 'bg-blue-500/10', textClass: 'text-blue-500 dark:text-blue-400' };
-        case 'Grains':
-          return { type: 'Grains', icon: '🌾', bgClass: 'bg-amber-500/20', textClass: 'text-amber-700 dark:text-amber-400' };
-        case 'Vegetables':
-          return { type: 'Vegetables', icon: '🥦', bgClass: 'bg-green-500/10', textClass: 'text-green-500 dark:text-green-400' };
-        case 'Seafood':
-          return { type: 'Seafood', icon: '🐟', bgClass: 'bg-cyan-500/10', textClass: 'text-cyan-500 dark:text-cyan-400' };
-        case 'Spices':
-          return { type: 'Spices', icon: '🧂', bgClass: 'bg-orange-500/10', textClass: 'text-orange-500 dark:text-orange-400' };
-        case 'Beverages':
-          return { type: 'Beverages', icon: '🥤', bgClass: 'bg-pink-500/10', textClass: 'text-pink-500 dark:text-pink-400' };
-        case 'Bakery':
-          return { type: 'Bakery', icon: '🍞', bgClass: 'bg-yellow-600/10', textClass: 'text-yellow-600 dark:text-yellow-500' };
-        case 'Packaging':
-          return { type: 'Packaging', icon: '📦', bgClass: 'bg-purple-500/10', textClass: 'text-purple-500 dark:text-purple-400' };
-        case 'Pantry':
-          return { type: 'Pantry', icon: '🥫', bgClass: 'bg-emerald-500/10', textClass: 'text-emerald-500 dark:text-emerald-400' };
-      }
-    }
-
-    const lowercaseName = itemName.toLowerCase();
-    if (
-      lowercaseName.includes('chicken') || 
-      lowercaseName.includes('meat') || 
-      lowercaseName.includes('mutton') || 
-      lowercaseName.includes('fish') ||
-      lowercaseName.includes('egg')
-    ) {
-      return { type: 'Meat', icon: '🍗', bgClass: 'bg-red-500/10', textClass: 'text-red-500 dark:text-red-400' };
-    }
-    if (
-      lowercaseName.includes('butter') || 
-      lowercaseName.includes('cream') || 
-      lowercaseName.includes('milk') || 
-      lowercaseName.includes('paneer') || 
-      lowercaseName.includes('cheese') ||
-      lowercaseName.includes('dairy')
-    ) {
-      return { type: 'Dairy', icon: '🥛', bgClass: 'bg-blue-500/10', textClass: 'text-blue-500 dark:text-blue-400' };
-    }
-    if (
-      lowercaseName.includes('rice') || 
-      lowercaseName.includes('grain') || 
-      lowercaseName.includes('flour') || 
-      lowercaseName.includes('basmati') ||
-      lowercaseName.includes('wheat')
-    ) {
-      return { type: 'Grains', icon: '🌾', bgClass: 'bg-amber-500/20', textClass: 'text-amber-700 dark:text-amber-400' };
-    }
-    if (
-      lowercaseName.includes('container') || 
-      lowercaseName.includes('pack') || 
-      lowercaseName.includes('box') || 
-      lowercaseName.includes('bag') ||
-      lowercaseName.includes('paper')
-    ) {
-      return { type: 'Packaging', icon: '📦', bgClass: 'bg-purple-500/10', textClass: 'text-purple-500 dark:text-purple-400' };
-    }
-    return { type: 'Pantry', icon: '🥫', bgClass: 'bg-emerald-500/10', textClass: 'text-emerald-500 dark:text-emerald-400' };
-  };
+  const [stepInput, setStepInput] = useState('1');
 
   const { type, icon, bgClass, textClass } = getCategoryDetails(ingredient.category, name);
-  const isLowStock = currentStock <= minThreshold;
+  const stockTheme = getStockLevelTheme(ingredient.stockLevel, isDark);
+  const stockBorder = getStockLevelBorderStyle(ingredient.stockLevel, isDark, 4);
   const baseUnit = unitRelation.baseUnit;
-
-  // Formatted stock display
-  const formatStock = (stock: number, unit: string) => {
-    if (unit === 'g') {
-      return `${(stock / 1000).toFixed(2)} kg`;
-    }
-    if (unit === 'ml') {
-      return `${(stock / 1000).toFixed(2)} L`;
-    }
-    return `${stock} pcs`;
-  };
-
-  const getUnitName = () => {
-    if (baseUnit === 'g') return 'kg';
-    if (baseUnit === 'ml') return 'L';
-    return 'pcs';
-  };
-
-  const getStepPlaceholder = () => {
-    if (baseUnit === 'g') return '1 kg';
-    if (baseUnit === 'ml') return '1 L';
-    return '1 pc';
-  };
+  const unitLabel = getPurchaseUnitLabel(baseUnit);
 
   const formattedStock = formatStock(currentStock, baseUnit);
-  const formattedThreshold = formatStock(minThreshold, baseUnit);
-  const stepPlaceholder = getStepPlaceholder();
+  const formattedPrice = formatPurchasePrice(ingredient);
+
+  const handleStepAdjust = (type: 'add' | 'deduct') => {
+    const amount = parseStepAmount(stepInput, baseUnit, unitRelation.conversionRatio);
+    onStepAdjust(type, amount);
+  };
 
   return (
-    <Card className="overflow-hidden border border-border/30 dark:border-border-dark/30 shadow-sm p-4">
-      {/* Top Section: Photo, Name, and Stock badge */}
-      <View className="flex-row items-center justify-between mb-3">
-        {/* Left Side: Photo & Details */}
-        <View className="flex-row items-center flex-1 mr-3">
+    <View
+      className="overflow-hidden shadow-sm p-3 rounded-3xl border border-border/30 dark:border-border-dark/30 bg-card dark:bg-card-dark w-full"
+      style={stockBorder ?? undefined}
+    >
+      {/* Top row: Left (image + name + category) | Middle (stock + price) | Right (edit + delete) */}
+      <View className="flex-row items-center mb-3">
+        {/* Left */}
+        <View className="flex-row items-center flex-1 mr-2">
           {image ? (
-            <Image 
-              source={{ uri: image }} 
-              className="w-12 h-12 rounded-2xl mr-3 border border-border/10"
+            <Image
+              source={{ uri: image }}
+              className="w-11 h-11 rounded-xl mr-2.5 border border-border/10"
               resizeMode="cover"
             />
           ) : (
-            <View className="w-12 h-12 rounded-2xl bg-primary/10 border border-primary/20 items-center justify-center mr-3">
-              <Text className="text-xl">{icon}</Text>
+            <View className="w-11 h-11 rounded-xl bg-primary/10 border border-primary/20 items-center justify-center mr-2.5">
+              <Text className="text-lg">{icon}</Text>
             </View>
           )}
 
           <View className="flex-1">
-            <View className="flex-row mb-0.5">
-              <View className={`px-1.5 py-0.5 rounded-md ${bgClass}`}>
-                <Text className={`text-[8px] font-black uppercase tracking-wider ${textClass}`}>{type}</Text>
-              </View>
-            </View>
-            <Text className="text-sm font-black text-text dark:text-text-dark leading-tight" numberOfLines={1}>
+            <Text
+              className="text-sm font-black text-text dark:text-text-dark leading-tight"
+              numberOfLines={2}
+            >
               {name}
             </Text>
-            <Text className="text-[10px] text-muted dark:text-muted-dark font-semibold mt-0.5">
-              Threshold: {formattedThreshold}
-            </Text>
+            <View className={`self-start px-1.5 py-0.5 rounded-md mt-1 ${bgClass}`}>
+              <Text className={`text-[8px] font-black uppercase tracking-wider ${textClass}`}>
+                {type}
+              </Text>
+            </View>
           </View>
         </View>
 
-        {/* Right Side: Stock Value and Edit controls */}
-        <View className="flex-row items-center" style={{ gap: 8 }}>
-          <TouchableOpacity 
+        {/* Middle */}
+        <View className="items-center mx-2" style={{ minWidth: 80 }}>
+          <TouchableOpacity
             onPress={onAdjust}
             disabled={isUpdating}
             activeOpacity={0.8}
-            className="bg-border/10 dark:bg-border-dark/10 border border-border/20 dark:border-border-dark/20 rounded-2xl px-3 py-1.5 items-end justify-center"
+            className="bg-border/10 dark:bg-border-dark/10 border border-border/20 dark:border-border-dark/20 rounded-xl px-3 py-1.5 items-center w-full"
           >
-            <Text className="text-[8px] text-muted dark:text-muted-dark font-bold uppercase tracking-wider mb-0.5">
-              Current Stock
+            <Text className="text-[7px] text-muted dark:text-muted-dark font-bold uppercase tracking-wider mb-0.5">
+              Stock
             </Text>
-            <View className="flex-row items-center" style={{ gap: 4 }}>
-              <Text className={`text-sm font-black ${isLowStock ? 'text-red-500' : 'text-text dark:text-text-dark'}`}>
+            <View className="flex-row items-center" style={{ gap: 3 }}>
+              <Text
+                className={`text-sm font-black ${stockTheme?.badgeTextClass ?? 'text-text dark:text-text-dark'}`}
+              >
                 {formattedStock}
               </Text>
-              <View className={`px-1 py-0.2 rounded-md ${isLowStock ? 'bg-red-500/10' : 'bg-emerald-500/10'}`}>
-                <Text className={`text-[7px] font-black uppercase ${isLowStock ? 'text-red-500' : 'text-emerald-500'}`}>
-                  {isLowStock ? 'Low' : 'OK'}
-                </Text>
-              </View>
+              {stockTheme ? (
+                <View className={`px-1 py-0.5 rounded ${stockTheme.badgeBgClass}`}>
+                  <Text className={`text-[6px] font-black uppercase ${stockTheme.badgeTextClass}`}>
+                    {stockTheme.label}
+                  </Text>
+                </View>
+              ) : null}
             </View>
           </TouchableOpacity>
 
-          <TouchableOpacity 
+          {formattedPrice ? (
+            <Text className="text-[10px] font-black text-primary mt-1.5 text-center">
+              {formattedPrice}
+            </Text>
+          ) : null}
+        </View>
+
+        {/* Right */}
+        <View className="items-center justify-center" style={{ gap: 6 }}>
+          <TouchableOpacity
             onPress={onEdit}
             disabled={isUpdating}
             activeOpacity={0.7}
@@ -251,7 +135,7 @@ export default function IngredientCard({
             <Ionicons name="pencil-sharp" size={14} color={primary} />
           </TouchableOpacity>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={onDelete}
             disabled={isUpdating}
             activeOpacity={0.7}
@@ -262,62 +146,59 @@ export default function IngredientCard({
         </View>
       </View>
 
-      {/* Bottom Section: Integrated Capsule Stepper Widget */}
-      <View className="flex-row items-center bg-border/5 dark:bg-border-dark/5 border border-border/50 dark:border-border-dark/50 rounded-2xl p-1 justify-between">
-        {/* Decrement Button */}
+      {/* Bottom: +/- with editable step amount in the middle */}
+      <View className="flex-row items-center bg-border/5 dark:bg-border-dark/5 border border-border/50 dark:border-border-dark/50 rounded-xl p-1">
         <TouchableOpacity
-          onPress={() => {
-            const baseAmount = parseStepAmount(stepAmount, baseUnit, unitRelation.conversionRatio);
-            onStepAdjust('deduct', baseAmount);
-          }}
+          onPress={() => handleStepAdjust('deduct')}
           disabled={isUpdating}
           activeOpacity={0.6}
-          className="w-10 h-10 rounded-xl bg-red-500/10 justify-center items-center active:bg-red-500/20 disabled:opacity-50"
+          className="w-9 h-9 rounded-lg bg-red-500/10 justify-center items-center active:bg-red-500/20 disabled:opacity-50"
         >
           {isUpdating ? (
             <ActivityIndicator size="small" color={danger} />
           ) : (
-            <Ionicons name="remove-outline" size={20} color={danger} />
+            <Ionicons name="remove-outline" size={18} color={danger} />
           )}
         </TouchableOpacity>
 
-        {/* Center: Custom Step Amount Input Field */}
-        <View className="flex-row items-center justify-center flex-1 px-4" style={{ gap: 4 }}>
-          <Text className="text-[9px] text-muted dark:text-muted-dark font-bold uppercase tracking-wider">
-            Step Size:
-          </Text>
-          <View className="flex-row items-center bg-card dark:bg-card-dark border border-border dark:border-border-dark rounded-xl px-3 py-1 shadow-sm">
-            <Ionicons name="create-outline" size={12} color={muted} style={{ marginRight: 4 }} />
-            <TextInput
-              value={stepAmount}
-              onChangeText={setStepAmount}
-              keyboardType="default"
-              placeholder={stepPlaceholder}
-              placeholderTextColor={muted}
-              editable={!isUpdating}
-              className="w-16 h-7 text-center text-xs font-black text-text dark:text-text-dark p-0 m-0"
-              style={{ paddingVertical: 0 }}
-            />
-          </View>
+        <View className="flex-1 flex-row items-center justify-center px-2" style={{ gap: 4 }}>
+          <TextInput
+            value={stepInput}
+            onChangeText={setStepInput}
+            keyboardType="decimal-pad"
+            editable={!isUpdating}
+            selectTextOnFocus
+            style={{
+              minWidth: 36,
+              maxWidth: 56,
+              height: 32,
+              textAlign: 'center',
+              fontSize: 14,
+              fontWeight: '900',
+              color: text,
+              backgroundColor: 'transparent',
+              padding: 0,
+              margin: 0,
+            }}
+          />
+          <Text className="text-xs font-bold text-muted dark:text-muted-dark">{unitLabel}</Text>
         </View>
 
-        {/* Increment Button */}
         <TouchableOpacity
-          onPress={() => {
-            const baseAmount = parseStepAmount(stepAmount, baseUnit, unitRelation.conversionRatio);
-            onStepAdjust('add', baseAmount);
-          }}
+          onPress={() => handleStepAdjust('add')}
           disabled={isUpdating}
           activeOpacity={0.6}
-          className="w-10 h-10 rounded-xl bg-emerald-500/10 justify-center items-center active:bg-emerald-500/20 disabled:opacity-50"
+          className="w-9 h-9 rounded-lg bg-emerald-500/10 justify-center items-center active:bg-emerald-500/20 disabled:opacity-50"
         >
           {isUpdating ? (
             <ActivityIndicator size="small" color={success} />
           ) : (
-            <Ionicons name="add-outline" size={20} color={success} />
+            <Ionicons name="add-outline" size={18} color={success} />
           )}
         </TouchableOpacity>
       </View>
-    </Card>
+    </View>
   );
 }
+
+export default React.memo(IngredientCard);

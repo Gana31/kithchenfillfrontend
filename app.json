@@ -13,7 +13,7 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.kitchenfill.inventory"
     },
     "android": {
@@ -26,6 +26,21 @@
     "web": {
       "favicon": "./assets/logo.png"
     },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "abiFilters": ["arm64-v8a"]
+          },
+          "ios": {
+            "deploymentTarget": "16.4"
+          }
+        }
+      ]
+    ],
     "extra": {
       "eas": {
         "projectId": "0b92faa8-51cd-4433-bf2d-149f26145967"
