@@ -4,3 +4,7 @@ dist/
 .DS_Store
 *.local
 assets/logo.original.png
+
+# Stale TypeScript emit — Expo uses Metro on .ts/.tsx directly (noEmit: true)
+src/**/*.js
+App.js

@@ -21,7 +21,8 @@
         "foregroundImage": "./assets/logo.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.kitchenfill.inventory"
+      "package": "com.kitchenfill.inventory",
+      "edgeToEdgeEnabled": false
     },
     "web": {
       "favicon": "./assets/logo.png"

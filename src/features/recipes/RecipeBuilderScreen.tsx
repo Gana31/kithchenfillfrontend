@@ -1,107 +1,220 @@
-import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { View, Text, RefreshControl, TouchableOpacity, Alert } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { CompositeNavigationProp, useNavigation } from '@react-navigation/native';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Card from '../../components/Card';
+import SearchBar from '../../components/SearchBar';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors } from '../../hooks/useThemeColors';
+import ScreenContainer from '../../components/ScreenContainer';
+import HeaderIconButton from '../../components/HeaderIconButton';
+import { AsyncContent } from '../../components/AsyncStateViews';
+import { useDeleteRecipeMutation, useGetRecipesQuery, RecipeData } from './recipesApi';
+import { formatInr } from '../dashboard/dashboardUtils';
+import { OwnerRootStackParamList } from '../../navigation/ownerNavigation.types';
+import { filterRecipesBySearch } from './recipeFormUtils';
 import { useAppDispatch } from '../../store/store';
 import { showToast } from '../../store/toastSlice';
-import ScreenContainer from '../../components/ScreenContainer';
 
-export default function RecipeBuilderScreen({ navigation }: any) {
+type OwnerTabParamList = {
+  Dashboard: undefined;
+  Inventory: undefined;
+  Recipes: undefined;
+  Counter: undefined;
+  Profile: undefined;
+};
+
+type RecipesTabNavigation = CompositeNavigationProp<
+  BottomTabNavigationProp<OwnerTabParamList, 'Recipes'>,
+  NativeStackNavigationProp<OwnerRootStackParamList>
+>;
+
+export default function RecipeBuilderScreen() {
+  const navigation = useNavigation<RecipesTabNavigation>();
   const dispatch = useAppDispatch();
   const { primary, muted, isDark } = useThemeColors();
+  const [searchQuery, setSearchQuery] = useState('');
+  const { data, isLoading, isFetching, error, refetch } = useGetRecipesQuery();
+  const [deleteRecipe, { isLoading: isDeleting }] = useDeleteRecipeMutation();
+
+  const recipes = data?.recipes ?? [];
+  const filteredRecipes = useMemo(
+    () => filterRecipesBySearch(recipes, searchQuery),
+    [recipes, searchQuery]
+  );
+
+  const openAddRecipe = useCallback(() => {
+    navigation.navigate('AddRecipe');
+  }, [navigation]);
+
+  const openEditRecipe = useCallback(
+    (recipeId: string) => {
+      navigation.navigate('AddRecipe', { recipeId });
+    },
+    [navigation]
+  );
+
+  const confirmDelete = useCallback(
+    (recipe: RecipeData) => {
+      Alert.alert(
+        'Delete recipe?',
+        `Remove "${recipe.name}"? This cannot be undone.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await deleteRecipe(recipe._id).unwrap();
+                dispatch(
+                  showToast({
+                    title: 'Recipe deleted',
+                    message: recipe.name,
+                    type: 'success',
+                  })
+                );
+              } catch (err: any) {
+                dispatch(
+                  showToast({
+                    title: 'Delete failed',
+                    message: err?.data?.error || 'Could not delete recipe.',
+                    type: 'error',
+                  })
+                );
+              }
+            },
+          },
+        ]
+      );
+    },
+    [deleteRecipe, dispatch]
+  );
 
   React.useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <TouchableOpacity
-          onPress={() =>
-            dispatch(
-              showToast({
-                title: 'Add Recipe',
-                message: 'Form to add new recipe batch details will be loaded here.',
-                type: 'info',
-              })
-            )
-          }
-          activeOpacity={0.7}
-          className="w-10 h-10 rounded-xl bg-card dark:bg-card-dark border border-border dark:border-border-dark justify-center items-center mr-6 shadow-sm"
-        >
-          <Ionicons name="add" size={22} color={primary} />
-        </TouchableOpacity>
+        <View className="mr-6">
+          <HeaderIconButton icon="add" onPress={openAddRecipe} />
+        </View>
       ),
     });
-  }, [navigation]);
+  }, [navigation, openAddRecipe]);
 
-  // Mock recipes data
-  const recipes = [
-    { id: '1', name: 'Butter Chicken (1kg Batch)', ingredientsCount: 8, makingCost: 350.00, yieldVal: '1000g' },
-    { id: '2', name: 'Paneer Tikka Masala (1kg Batch)', ingredientsCount: 6, makingCost: 280.00, yieldVal: '1000g' },
-    { id: '3', name: 'Chicken Biryani (1kg Batch)', ingredientsCount: 12, makingCost: 410.00, yieldVal: '1000g' },
-    { id: '4', name: 'Jeera Rice (1kg Batch)', ingredientsCount: 4, makingCost: 90.00, yieldVal: '1000g' },
-  ];
+  const hasRecipes = recipes.length > 0;
+  const showEmptySearch = hasRecipes && filteredRecipes.length === 0 && searchQuery.trim().length > 0;
 
   return (
     <>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-      <ScreenContainer scrollable bottomInset={120} contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 16 }}>
-        {/* Info card */}
-        <Card className="mb-6 bg-primary/10 border-primary/20">
-          <View className="flex-row items-center space-x-3">
-            <View className="p-2 rounded-xl bg-primary/20">
-              <Ionicons name="restaurant" size={20} color={primary} />
-            </View>
-            <View className="flex-1 ml-3">
-              <Text className="text-sm font-black text-text dark:text-text-dark">
-                Portion Control Active
+      <ScreenContainer
+        scrollable
+        bottomInset={120}
+        contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 16 }}
+        scrollProps={{
+          refreshControl: (
+            <RefreshControl refreshing={isFetching && !isLoading} onRefresh={refetch} tintColor={primary} />
+          ),
+        }}
+      >
+        {hasRecipes ? (
+          <SearchBar
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search recipes..."
+            className="mb-4"
+          />
+        ) : null}
+
+        <AsyncContent
+          isLoading={isLoading}
+          error={error}
+          isEmpty={!hasRecipes}
+          loadingMessage="Loading recipes…"
+          errorMessage="Could not load recipes. Check your connection and API."
+          emptyIcon="book-outline"
+          emptyTitle="No recipes yet"
+          emptyMessage="Tap + to create your first batch recipe using real ingredient costs from inventory."
+          emptyActionLabel="Add recipe"
+          onEmptyAction={openAddRecipe}
+          onRetry={refetch}
+        >
+          {showEmptySearch ? (
+            <View className="items-center py-10">
+              <Ionicons name="search-outline" size={32} color={muted} />
+              <Text className="text-sm font-bold text-muted dark:text-muted-dark mt-3">
+                No recipes match &quot;{searchQuery.trim()}&quot;
               </Text>
-              <Text className="text-xs text-muted dark:text-muted-dark mt-0.5 leading-relaxed">
-                Define batch yields (e.g. 1kg Biryani) then specify portion selling sizes (e.g. 250g half, 500g full) with automated cost calculations.
-              </Text>
             </View>
-          </View>
-        </Card>
+          ) : (
+            <View style={{ gap: 16 }}>
+              {filteredRecipes.map((recipe) => {
+                const costing = recipe.costing;
+                const batchCost = costing?.batchCost ?? 0;
+                const yieldLabel = `${recipe.batchYieldAmount}${recipe.batchYieldUnit}`;
+                const customCount = recipe.customCostLines?.length ?? 0;
+                const itemCount = recipe.ingredientsUsed.length + customCount;
 
-        {/* Recipes List */}
-        <Text className="text-lg font-black text-text dark:text-text-dark mb-4">
-          Cooked Batches
-        </Text>
+                return (
+                  <Card key={recipe._id} className="p-5">
+                    <View className="flex-row justify-between items-start">
+                      <View className="flex-grow pr-3">
+                        <Text className="text-base font-black text-text dark:text-text-dark leading-tight">
+                          {recipe.name}
+                        </Text>
+                        <View className="flex-row items-center mt-2 flex-wrap" style={{ gap: 12 }}>
+                          <View className="flex-row items-center" style={{ gap: 4 }}>
+                            <Ionicons name="leaf-outline" size={12} color={muted} />
+                            <Text className="text-[11px] text-muted dark:text-muted-dark font-bold">
+                              {itemCount} items
+                            </Text>
+                          </View>
+                          <View className="flex-row items-center" style={{ gap: 4 }}>
+                            <Ionicons name="scale-outline" size={12} color={muted} />
+                            <Text className="text-[11px] text-muted dark:text-muted-dark font-bold">
+                              Yield: {yieldLabel}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
 
-        <View className="space-y-4" style={{ gap: 16 }}>
-          {recipes.map((recipe) => (
-            <Card key={recipe.id} className="p-5">
-              <View className="flex-row justify-between items-start">
-                <View className="flex-grow pr-4">
-                  <Text className="text-base font-black text-text dark:text-text-dark leading-tight">
-                    {recipe.name}
-                  </Text>
-                  <View className="flex-row items-center mt-2" style={{ gap: 12 }}>
-                    <View className="flex-row items-center" style={{ gap: 4 }}>
-                      <Ionicons name="leaf-outline" size={12} color={muted} />
-                      <Text className="text-[11px] text-muted dark:text-muted-dark font-bold">
-                        {recipe.ingredientsCount} ingredients
-                      </Text>
+                      <View className="items-end">
+                        <Text className="text-xs text-muted dark:text-muted-dark font-bold uppercase">Total cost</Text>
+                        <Text className="text-lg font-black text-primary mt-0.5">{formatInr(batchCost)}</Text>
+                      </View>
                     </View>
-                    <View className="flex-row items-center" style={{ gap: 4 }}>
-                      <Ionicons name="scale-outline" size={12} color={muted} />
-                      <Text className="text-[11px] text-muted dark:text-muted-dark font-bold">
-                        Yield: {recipe.yieldVal}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
 
-                <View className="items-end">
-                  <Text className="text-xs text-muted dark:text-muted-dark font-bold uppercase">Making Cost</Text>
-                  <Text className="text-lg font-black text-primary mt-0.5">
-                    ₹{recipe.makingCost.toFixed(2)}
-                  </Text>
-                </View>
-              </View>
-            </Card>
-          ))}
-        </View>
+                    <View
+                      className="flex-row items-center justify-end mt-4 pt-3 border-t border-border/30 dark:border-border-dark/30"
+                      style={{ gap: 16 }}
+                    >
+                      <TouchableOpacity
+                        onPress={() => openEditRecipe(recipe._id)}
+                        className="flex-row items-center"
+                        style={{ gap: 6 }}
+                        disabled={isDeleting}
+                      >
+                        <Ionicons name="create-outline" size={18} color={primary} />
+                        <Text className="text-xs font-bold text-primary">Edit</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => confirmDelete(recipe)}
+                        className="flex-row items-center"
+                        style={{ gap: 6 }}
+                        disabled={isDeleting}
+                      >
+                        <Ionicons name="trash-outline" size={18} color="#ef4444" />
+                        <Text className="text-xs font-bold text-red-500">Delete</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </Card>
+                );
+              })}
+            </View>
+          )}
+        </AsyncContent>
       </ScreenContainer>
     </>
   );

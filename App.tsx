@@ -23,14 +23,18 @@ import SuperadminDashboardScreen from './src/features/superadmin/SuperadminDashb
 import ManageOwnersScreen from './src/features/superadmin/ManageOwnersScreen';
 import InventoryScreen from './src/features/inventory/InventoryScreen';
 import RecipeBuilderScreen from './src/features/recipes/RecipeBuilderScreen';
+import AddRecipeScreen from './src/features/recipes/components/AddRecipeScreen';
 import CounterScreen from './src/features/sales/CounterScreen';
 import BlobBackground from './src/components/BlobBackground';
 import ProfileScreen from './src/features/profile/ProfileScreen';
 import Toast from './src/components/Toast';
 import { showToast } from './src/store/toastSlice';
+import { useSystemChrome } from './src/hooks/useSystemChrome';
+import { OwnerRootStackParamList } from './src/navigation/ownerNavigation.types';
 import './global.css'; // Import compiled TailwindCSS global styles
 
 const Stack = createNativeStackNavigator();
+const OwnerStack = createNativeStackNavigator<OwnerRootStackParamList>();
 const Tab = createBottomTabNavigator();
 
 function CustomHeader({ options, route, navigation }: BottomTabHeaderProps) {
@@ -67,7 +71,7 @@ function CustomHeader({ options, route, navigation }: BottomTabHeaderProps) {
         };
       case 'Recipes':
         return {
-          title: 'Dish',
+          title: 'My',
           titleHighlight: 'Recipes',
           subtitle: 'Manage Batches',
         };
@@ -97,16 +101,21 @@ function CustomHeader({ options, route, navigation }: BottomTabHeaderProps) {
   return (
     <View style={{ overflow: 'hidden', borderBottomWidth: 0, backgroundColor: 'transparent', paddingTop: insets.top }}>
       <View className="flex-row justify-between items-center px-6 py-4">
-        <View>
-          <Text className="text-2xl font-black text-text dark:text-text-dark tracking-tight">
-            {title}<Text className="text-primary">{titleHighlight}</Text>
-            <Text className="text-primary text-2xl">.</Text>
-          </Text>
-          <Text className="text-xs text-muted dark:text-muted-dark font-bold mt-0.5 uppercase tracking-widest">
-            {subtitle}
-          </Text>
+        <View className="flex-row items-center flex-1 mr-2" style={{ gap: 10 }}>
+          <View className="flex-shrink">
+            <Text className="text-2xl font-black text-text dark:text-text-dark tracking-tight">
+              {title}<Text className="text-primary">{titleHighlight}</Text>
+              <Text className="text-primary text-2xl">.</Text>
+            </Text>
+            <Text className="text-xs text-muted dark:text-muted-dark font-bold mt-0.5 uppercase tracking-widest">
+              {subtitle}
+            </Text>
+          </View>
+          {options.headerLeft?.({
+            canGoBack: typeof navigation.canGoBack === 'function' ? navigation.canGoBack() : false,
+          })}
         </View>
-        <View className="flex-row items-center">
+        <View className="flex-row items-center flex-shrink-0">
           {options.headerRight?.({ canGoBack: typeof navigation.canGoBack === 'function' ? navigation.canGoBack() : false })}
         </View>
       </View>
@@ -138,27 +147,37 @@ function SuperadminNavigator() {
   );
 }
 
+function OwnerTabNavigator() {
+  const isDark = useAppSelector(selectIsDark);
+  return (
+    <Tab.Navigator
+      tabBar={(props) => <CustomTabBar {...props} />}
+      screenOptions={{
+        headerShown: true,
+        header: (props) => <CustomHeader {...props} />,
+        animation: 'shift',
+        sceneStyle: { flex: 1, backgroundColor: 'transparent' },
+      }}
+    >
+      <Tab.Screen name="Dashboard" component={DashboardScreen} />
+      <Tab.Screen name="Inventory" component={InventoryScreen} />
+      <Tab.Screen name="Recipes" component={RecipeBuilderScreen} />
+      <Tab.Screen name="Counter" component={CounterScreen} />
+      <Tab.Screen name="Profile" component={ProfileScreen} />
+    </Tab.Navigator>
+  );
+}
+
 function OwnerNavigator() {
   const isDark = useAppSelector(selectIsDark);
   return (
     <View style={{ flex: 1, backgroundColor: isDark ? '#09090A' : '#FFFFFF' }}>
       <BlobBackground />
       <View style={{ flex: 1, zIndex: 1, elevation: 1 }}>
-        <Tab.Navigator
-          tabBar={(props) => <CustomTabBar {...props} />}
-          screenOptions={{
-            headerShown: true,
-            header: (props) => <CustomHeader {...props} />,
-            animation: 'shift',
-            sceneStyle: { flex: 1, backgroundColor: 'transparent' },
-          }}
-        >
-          <Tab.Screen name="Dashboard" component={DashboardScreen} />
-          <Tab.Screen name="Inventory" component={InventoryScreen} />
-          <Tab.Screen name="Recipes" component={RecipeBuilderScreen} />
-          <Tab.Screen name="Counter" component={CounterScreen} />
-          <Tab.Screen name="Profile" component={ProfileScreen} />
-        </Tab.Navigator>
+        <OwnerStack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
+          <OwnerStack.Screen name="MainTabs" component={OwnerTabNavigator} />
+          <OwnerStack.Screen name="AddRecipe" component={AddRecipeScreen} />
+        </OwnerStack.Navigator>
       </View>
     </View>
   );
@@ -175,6 +194,7 @@ function RootApp() {
   
   // 3. Select isDark computed preference (respects manual select & dev override)
   const isDark = useAppSelector(selectIsDark);
+  useSystemChrome(isDark);
 
   // 4. Select authentication status & user details
   const isAuthenticated = useAppSelector(selectIsAuthenticated);

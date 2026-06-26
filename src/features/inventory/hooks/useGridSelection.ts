@@ -1,6 +1,12 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { IngredientData } from './inventoryApi';
-import { GridSelectionState } from './components/InventoryGridView';
+import { IngredientData } from '../inventoryApi';
+
+export interface GridSelectionState {
+  active: boolean;
+  count: number;
+  total: number;
+  allSelected: boolean;
+}
 
 interface UseGridSelectionOptions {
   items: IngredientData[];

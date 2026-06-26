@@ -11,7 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import Input from '../../../components/Input';
 import Button from '../../../components/Button';
-import { useUpdateIngredientMutation, IngredientData } from '../inventoryApi';
+import { useAdjustStockMutation, IngredientData } from '../inventoryApi';
 import { useThemeColors } from '../../../hooks/useThemeColors';
 import { useAppDispatch } from '../../../store/store';
 import { showToast } from '../../../store/toastSlice';
@@ -25,7 +25,7 @@ interface AdjustStockModalProps {
 export default function AdjustStockModal({ visible, onClose, ingredient }: AdjustStockModalProps) {
   const { muted, primary, danger, success } = useThemeColors();
   const dispatch = useAppDispatch();
-  const [updateIngredient, { isLoading: isUpdating }] = useUpdateIngredientMutation();
+  const [adjustStock, { isLoading: isUpdating }] = useAdjustStockMutation();
 
   // Input state
   const [adjustmentValue, setAdjustmentValue] = useState('');
@@ -76,28 +76,13 @@ export default function AdjustStockModal({ visible, onClose, ingredient }: Adjus
 
     setFormError('');
 
-    // Calculate new stock in base units
     const baseAdjustment = valueNum * ratio;
-    let newBaseQuantity = ingredient.currentStock;
-
-    if (type === 'add') {
-      newBaseQuantity += baseAdjustment;
-    } else {
-      newBaseQuantity = Math.max(0, newBaseQuantity - baseAdjustment);
-    }
+    const delta = type === 'add' ? baseAdjustment : -baseAdjustment;
 
     try {
-      const result = await updateIngredient({
+      const result = await adjustStock({
         id: ingredient._id,
-        body: {
-          name: ingredient.name,
-          minThreshold: ingredient.minThreshold,
-          purchaseUnit: ingredient.unitRelation.purchaseUnit,
-          baseUnit: ingredient.unitRelation.baseUnit,
-          conversionRatio: ratio,
-          currentStock: newBaseQuantity,
-          image: ingredient.image || undefined
-        }
+        delta,
       }).unwrap();
 
       if (result.success) {

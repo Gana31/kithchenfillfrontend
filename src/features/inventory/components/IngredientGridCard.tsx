@@ -1,29 +1,28 @@
-import React, { useRef, useState } from 'react';
-import { View, Text, Image, TouchableOpacity, Pressable, ActivityIndicator, TextInput } from 'react-native';
+import React, { useRef } from 'react';
+import { View, Text, Image, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors } from '../../../hooks/useThemeColors';
 import { IngredientData } from '../inventoryApi';
 import {
   getCategoryDetails,
   formatStockCompact,
-  formatPurchasePrice,
-  getQuickStepAmount,
-  getGridImageSize,
-  getPurchaseUnitLabel,
-  parseStepAmount,
+  formatPurchasePriceDisplay,
   getStockLevelTheme,
+  GRID_NAME_BLOCK_HEIGHT,
 } from '../inventoryUtils';
+import StockStepper from './StockStepper';
 
 interface IngredientGridCardProps {
   ingredient: IngredientData;
   cardWidth: number;
+  cardHeight: number;
   isUpdating?: boolean;
   selectionMode?: boolean;
   isSelected?: boolean;
   onEdit: (ingredient: IngredientData) => void;
   onLongPress: (id: string) => void;
   onToggleSelect: (id: string) => void;
-  onStepAdjust: (ingredient: IngredientData, type: 'add' | 'deduct', baseAmount: number) => void;
+  onStepAdjust: (ingredientId: string, type: 'add' | 'deduct', baseAmount: number) => void;
 }
 
 const LONG_PRESS_DELAY = 300;
@@ -33,6 +32,7 @@ const SCROLL_PRESS_DELAY = 120;
 export default React.memo(function IngredientGridCard({
   ingredient,
   cardWidth,
+  cardHeight,
   isUpdating = false,
   selectionMode = false,
   isSelected = false,
@@ -41,10 +41,9 @@ export default React.memo(function IngredientGridCard({
   onToggleSelect,
   onStepAdjust,
 }: IngredientGridCardProps) {
-  const { danger, success, primary, text, isDark } = useThemeColors();
+  const { primary, isDark } = useThemeColors();
   const { name, currentStock, unitRelation = { baseUnit: 'g', conversionRatio: 1000, purchaseUnit: 'kg' }, image } = ingredient;
   const baseUnit = unitRelation.baseUnit;
-  const [stepInput, setStepInput] = useState('1');
   const imageSize = cardWidth - 2;
   const contentWidth = cardWidth - 14;
   const suppressPressUntil = useRef(0);
@@ -53,13 +52,8 @@ export default React.memo(function IngredientGridCard({
   const { icon } = getCategoryDetails(ingredient.category, name);
   const stockTheme = getStockLevelTheme(ingredient.stockLevel, isDark);
   const formattedStock = formatStockCompact(currentStock, baseUnit);
-  const formattedPrice = formatPurchasePrice(ingredient);
-  const unitLabel = getPurchaseUnitLabel(baseUnit);
-
-  const handleStepAdjust = (type: 'add' | 'deduct') => {
-    const amount = parseStepAmount(stepInput, baseUnit, unitRelation.conversionRatio) || getQuickStepAmount(baseUnit, unitRelation.conversionRatio);
-    onStepAdjust(ingredient, type, amount);
-  };
+  const priceDisplay = formatPurchasePriceDisplay(ingredient);
+  const showStepLoading = isUpdating;
 
   const handleLongPress = () => {
     suppressPressUntil.current = Date.now() + SUPPRESS_PRESS_MS;
@@ -85,9 +79,9 @@ export default React.memo(function IngredientGridCard({
 
   const cardShellStyle = {
     width: cardWidth,
+    height: cardHeight,
     borderRadius: 10,
     overflow: 'hidden' as const,
-    alignSelf: 'flex-start' as const,
     borderWidth: isSelected ? 2 : 1,
     borderColor: isSelected ? primary : undefined,
     backgroundColor: isSelected ? `${primary}18` : undefined,
@@ -110,7 +104,12 @@ export default React.memo(function IngredientGridCard({
       }}
     >
       {image ? (
-        <Image source={{ uri: image }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+        <Image
+          key={ingredient._id}
+          source={{ uri: image }}
+          style={{ width: '100%', height: '100%' }}
+          resizeMode="cover"
+        />
       ) : (
         <View style={{ width: '100%', height: '100%' }} className="bg-primary/10 items-center justify-center">
           <Text className="text-2xl">{icon}</Text>
@@ -135,77 +134,54 @@ export default React.memo(function IngredientGridCard({
   );
 
   const nameBlock = (
-    <View style={{ width: contentWidth, paddingHorizontal: 6, alignItems: 'center' }}>
-      <Text className="text-[11px] font-black text-text dark:text-text-dark text-center" numberOfLines={2}>
+    <View
+      style={{
+        width: contentWidth,
+        height: GRID_NAME_BLOCK_HEIGHT,
+        paddingHorizontal: 6,
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
+      }}
+    >
+      <Text
+        className="text-[11px] font-black text-text dark:text-text-dark text-center"
+        numberOfLines={2}
+        ellipsizeMode="tail"
+        style={{ lineHeight: 13, maxHeight: 26 }}
+      >
         {name}
       </Text>
       <Text
         className={`text-[9px] font-black text-center mt-0.5 ${stockTheme?.badgeTextClass ?? 'text-muted dark:text-muted-dark'}`}
         numberOfLines={1}
+        ellipsizeMode="tail"
+        style={{ lineHeight: 11 }}
       >
         {formattedStock}
+      </Text>
+      <Text
+        className={`text-[9px] font-black text-center mt-0.5 ${
+          priceDisplay.hasPrice ? 'text-primary' : 'text-muted dark:text-muted-dark'
+        }`}
+        numberOfLines={1}
+        ellipsizeMode="tail"
+        style={{ lineHeight: 11 }}
+      >
+        {priceDisplay.text}
       </Text>
     </View>
   );
 
   const stepperBlock = !selectionMode ? (
-    <View className="mt-2 pb-2" style={{ width: cardWidth }}>
-      <View className="mx-0 flex-row items-center bg-border/5 dark:bg-border-dark/5 border border-border/50 dark:border-border-dark/50 rounded-none px-1 py-1">
-        <Pressable
-          onPress={() => handleStepAdjust('deduct')}
-          disabled={isUpdating}
-          style={{ width: 30, height: 30 }}
-          className="rounded-lg bg-red-500/10 border border-red-500/20 justify-center items-center active:bg-red-500/20 disabled:opacity-50"
-        >
-          {isUpdating ? (
-            <ActivityIndicator size="small" color={danger} />
-          ) : (
-            <Ionicons name="remove-outline" size={18} color={danger} />
-          )}
-        </Pressable>
-
-        <View className="flex-1 flex-row items-center justify-center px-1" style={{ gap: 3 }}>
-          <TextInput
-            value={stepInput}
-            onChangeText={setStepInput}
-            keyboardType="decimal-pad"
-            editable={!isUpdating}
-            selectTextOnFocus
-            style={{
-              minWidth: 22,
-              maxWidth: 34,
-              height: 28,
-              textAlign: 'center',
-              fontSize: 11,
-              fontWeight: '900',
-              color: text,
-              padding: 0,
-              margin: 0,
-            }}
-          />
-          <Text className="text-[8px] font-bold text-muted dark:text-muted-dark">{unitLabel}</Text>
-        </View>
-
-        <Pressable
-          onPress={() => handleStepAdjust('add')}
-          disabled={isUpdating}
-          style={{ width: 30, height: 30 }}
-          className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 justify-center items-center active:bg-emerald-500/20 disabled:opacity-50"
-        >
-          {isUpdating ? (
-            <ActivityIndicator size="small" color={success} />
-          ) : (
-            <Ionicons name="add-outline" size={18} color={success} />
-          )}
-        </Pressable>
-      </View>
-
-      {formattedPrice ? (
-        <Text className="text-[9px] font-black text-primary text-center mt-1.5" numberOfLines={1}>
-          {formattedPrice}
-        </Text>
-      ) : null}
-
+    <View className="mt-1 pb-2" style={{ width: cardWidth }}>
+      <StockStepper
+        baseUnit={baseUnit}
+        conversionRatio={unitRelation.conversionRatio}
+        isUpdating={showStepLoading}
+        compact
+        onStepAdjust={(type, amount) => onStepAdjust(ingredient._id, type, amount)}
+      />
     </View>
   ) : null;
 
@@ -222,7 +198,7 @@ export default React.memo(function IngredientGridCard({
   ) : null;
 
   return (
-    <View style={{ width: cardWidth, alignSelf: 'flex-start' }}>
+    <View style={{ width: cardWidth, height: cardHeight }}>
       <View
         style={cardShellStyle}
         className={isSelected ? '' : 'bg-card dark:bg-card-dark border-border/30 dark:border-border-dark/30'}

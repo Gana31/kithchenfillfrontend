@@ -16,7 +16,7 @@ import {
 import Card from '../../components/Card';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors } from '../../hooks/useThemeColors';
-import SearchBar from './components/SearchBar';
+import SearchBar from '../../components/SearchBar';
 import OwnerCard from './components/OwnerCard';
 import AddOwnerModal from './components/AddOwnerModal';
 import { useAppDispatch } from '../../store/store';

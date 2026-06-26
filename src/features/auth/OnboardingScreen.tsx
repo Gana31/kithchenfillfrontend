@@ -34,9 +34,9 @@ export default function OnboardingScreen() {
 
   const slides: Slide[] = [
     {
-      title: 'FIFO Stock',
-      highlight: 'Costing',
-      description: 'Track ingredient stock in chronological batches. The system automatically deducts from the oldest lot to calculate accurate profit margins.',
+      title: 'Simple Stock',
+      highlight: 'Pricing',
+      description: 'Each ingredient keeps one purchase price. When you buy at a new rate, update that price — recipe costs stay in sync automatically.',
       icon: '📦',
     },
     {

@@ -1,12 +1,7 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
-  Text,
-  TouchableOpacity,
-  ActivityIndicator,
-  TextInput,
   BackHandler,
-  RefreshControl,
   useWindowDimensions,
   ListRenderItem,
   ViewStyle,
@@ -15,66 +10,44 @@ import {
 import { FlatList } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import Card from '../../components/Card';
-import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors } from '../../hooks/useThemeColors';
-import {
-  useGetIngredientsQuery,
-  useUpdateIngredientMutation,
-  useDeleteIngredientMutation,
-  IngredientData,
-  INGREDIENTS_PAGE_SIZE,
-} from './inventoryApi';
+import { IngredientData } from './inventoryApi';
 import IngredientCard from './components/IngredientCard';
 import IngredientGridCard from './components/IngredientGridCard';
-import { GridSelectionState } from './components/InventoryGridView';
+import InventoryToolbar from './components/InventoryToolbar';
+import InventorySortMenu from './components/InventorySortMenu';
+import InventoryListStates from './components/InventoryListStates';
+import AddIngredientModal from './components/AddIngredientModal';
+import AdjustStockModal from './components/AdjustStockModal';
+import ConfirmModal from '../../components/ConfirmModal';
+import ScreenContainer from '../../components/ScreenContainer';
+import { ListLoadMoreFooter } from '../../components/AsyncStateViews';
+import { useGridSelection, GridSelectionState } from './hooks/useGridSelection';
+import { useDebouncedStockAdjust } from './hooks/useDebouncedStockAdjust';
+import { useInventoryPreferences } from './hooks/useInventoryPreferences';
+import { useInventoryList, GridRowData } from './hooks/useInventoryList';
+import { useInventoryDeleteActions } from './hooks/useInventoryDeleteActions';
+import { useInventoryHeader } from './hooks/useInventoryHeader';
 import {
-  InventoryLayout,
   SortOption,
-  loadInventoryPreferences,
-  saveInventoryPreferences,
-  SORT_OPTIONS,
   getGridCardWidth,
   getGridCardHeight,
   GRID_COLUMNS,
   GRID_GAP,
   GRID_HORIZONTAL_PADDING,
 } from './inventoryUtils';
-import { useGridSelection } from './useGridSelection';
-import AddIngredientModal from './components/AddIngredientModal';
-import AdjustStockModal from './components/AdjustStockModal';
-import { useAppDispatch } from '../../store/store';
-import { showToast } from '../../store/toastSlice';
-import ConfirmModal from '../../components/ConfirmModal';
-import ScreenContainer from '../../components/ScreenContainer';
-
-const SEARCH_DEBOUNCE_MS = 300;
-
-interface GridRowData {
-  id: string;
-  items: IngredientData[];
-}
 
 export default function InventoryScreen({ navigation }: any) {
-  const dispatch = useAppDispatch();
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
-  const { primary, danger, muted, isDark, text } = useThemeColors();
+  const { isDark } = useThemeColors();
   const cardWidth = getGridCardWidth(screenWidth);
 
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingIngredient, setEditingIngredient] = useState<IngredientData | null>(null);
   const [isAdjustModalVisible, setIsAdjustModalVisible] = useState(false);
   const [adjustingIngredient, setAdjustingIngredient] = useState<IngredientData | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [prefsLoaded, setPrefsLoaded] = useState(false);
-  const [layout, setLayout] = useState<InventoryLayout>('list');
-  const [sortBy, setSortBy] = useState<SortOption>('name-asc');
   const [showSortMenu, setShowSortMenu] = useState(false);
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [ingredientToDelete, setIngredientToDelete] = useState<IngredientData | null>(null);
-  const [bulkDeleteItems, setBulkDeleteItems] = useState<IngredientData[]>([]);
   const [selectionClearToken, setSelectionClearToken] = useState(0);
   const [gridSelection, setGridSelection] = useState<GridSelectionState>({
     active: false,
@@ -82,86 +55,60 @@ export default function InventoryScreen({ navigation }: any) {
     total: 0,
     allSelected: false,
   });
-  const [page, setPage] = useState(1);
-  const [isManualRefreshing, setIsManualRefreshing] = useState(false);
-  const refreshInFlight = useRef(false);
-  const suppressLoadMoreUntilRef = useRef(0);
-  const canLoadMoreRef = useRef(false);
-  const pendingRefreshPageResetRef = useRef(false);
-  const loadMoreDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const listRef = useRef<FlatList<IngredientData>>(null);
+  const gridRef = useRef<FlatList<GridRowData>>(null);
+
+  const { prefsLoaded, layout, sortBy, stockLevelSort, handleLayoutChange, handleSortChange } =
+    useInventoryPreferences();
+
+  const { queueAdjust, getPendingDelta, isSyncing, pendingVersion } = useDebouncedStockAdjust();
+
+  const {
+    searchQuery,
+    setSearchQuery,
+    debouncedSearch,
+    displayIngredients,
+    gridRows,
+    listSortKey,
+    lowStockCount,
+    totalCount,
+    error,
+    isFetching,
+    hasLoadedInventory,
+    isInitialInventoryLoading,
+    isLoadingMore,
+    isManualRefreshing,
+    handleRefresh: refreshList,
+    loadMore,
+    enableLoadMore,
+    suppressLoadMore,
+    resetPage,
+  } = useInventoryList({
+    prefsLoaded,
+    sortBy,
+    stockLevelSort,
+    getPendingDelta,
+    pendingVersion,
+  });
+
+  const bumpSelectionClear = useCallback(() => setSelectionClearToken((t) => t + 1), []);
+
+  const deleteActions = useInventoryDeleteActions({
+    onDeleteSuccess: resetPage,
+    onBulkDeleteSuccess: () => {
+      resetPage();
+      bumpSelectionClear();
+    },
+  });
 
   const handleGridSelectionChange = useCallback((state: GridSelectionState) => {
     setGridSelection(state);
   }, []);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(searchQuery.trim()), SEARCH_DEBOUNCE_MS);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
-
-  useEffect(() => {
-    setPage(1);
-    canLoadMoreRef.current = false;
-  }, [debouncedSearch, sortBy]);
-
-  useEffect(() => {
-    loadInventoryPreferences().then((prefs) => {
-      if (prefs) {
-        setLayout(prefs.layout);
-        setSortBy(prefs.sortBy);
-      }
-      setPrefsLoaded(true);
-    });
-  }, []);
-
-  const handleLayoutChange = (newLayout: InventoryLayout) => {
-    if (newLayout === layout) return;
-    suppressLoadMoreUntilRef.current = Date.now() + 600;
-    canLoadMoreRef.current = false;
-    setLayout(newLayout);
-    if (newLayout !== 'grid' && gridSelection.active) {
-      setSelectionClearToken((t) => t + 1);
-    }
-    saveInventoryPreferences({ layout: newLayout, sortBy });
-  };
-
-  const handleSortChange = (newSort: SortOption) => {
-    setSortBy(newSort);
-    setShowSortMenu(false);
-    saveInventoryPreferences({ layout, sortBy: newSort });
-  };
-
-  const { data, isLoading, isFetching, error, refetch } = useGetIngredientsQuery({
-    page,
-    limit: INGREDIENTS_PAGE_SIZE,
-    search: debouncedSearch,
-    sortBy,
-  });
-
-  const ingredients = data?.ingredients ?? [];
-  const hasMore = data?.pagination?.hasMore ?? false;
-  const lowStockCount = data?.lowStockCount ?? 0;
-  const totalCount = data?.pagination?.total ?? ingredients.length;
-
-  const gridRows = useMemo((): GridRowData[] => {
-    const rows: GridRowData[] = [];
-    for (let i = 0; i < ingredients.length; i += GRID_COLUMNS) {
-      const slice = ingredients.slice(i, i + GRID_COLUMNS);
-      rows.push({
-        id: slice.map((item) => item._id).join('|'),
-        items: slice,
-      });
-    }
-    return rows;
-  }, [ingredients]);
-
-  const handleBulkDeleteRequest = useCallback((items: IngredientData[]) => {
-    setBulkDeleteItems(items);
-  }, []);
-
   const grid = useGridSelection({
-    items: ingredients,
-    onBulkDelete: handleBulkDeleteRequest,
+    items: displayIngredients,
+    onBulkDelete: deleteActions.requestBulkDelete,
     onSelectionChange: handleGridSelectionChange,
     selectionClearToken,
   });
@@ -171,42 +118,44 @@ export default function InventoryScreen({ navigation }: any) {
     [cardWidth, grid.selectionMode]
   );
 
-  const handleRefresh = useCallback(async () => {
-    if (refreshInFlight.current) return;
-    refreshInFlight.current = true;
-    setIsManualRefreshing(true);
-    canLoadMoreRef.current = false;
-    grid.clearSelection();
-    try {
-      if (page !== 1) {
-        pendingRefreshPageResetRef.current = true;
-        setPage(1);
-      } else {
-        await refetch();
-        refreshInFlight.current = false;
-        setIsManualRefreshing(false);
+  const onLayoutChange = useCallback(
+    (newLayout: typeof layout) => {
+      suppressLoadMore();
+      if (newLayout !== 'grid' && gridSelection.active) {
+        bumpSelectionClear();
       }
-    } catch {
-      refreshInFlight.current = false;
-      setIsManualRefreshing(false);
+      handleLayoutChange(newLayout);
+    },
+    [suppressLoadMore, gridSelection.active, bumpSelectionClear, handleLayoutChange]
+  );
+
+  const onAddPress = useCallback(() => {
+    setEditingIngredient(null);
+    setIsModalVisible(true);
+  }, []);
+
+  useInventoryHeader({
+    navigation,
+    prefsLoaded,
+    layout,
+    lowStockCount,
+    onLayoutChange,
+    onAddPress,
+  });
+
+  const handleRefresh = useCallback(() => {
+    if (layout === 'grid') {
+      gridRef.current?.scrollToOffset({ offset: 0, animated: false });
+    } else {
+      listRef.current?.scrollToOffset({ offset: 0, animated: false });
     }
-  }, [page, refetch, grid.clearSelection]);
-
-  useEffect(() => {
-    if (!pendingRefreshPageResetRef.current) return;
-    if (page !== 1 || isFetching) return;
-
-    pendingRefreshPageResetRef.current = false;
-    refreshInFlight.current = false;
-    setIsManualRefreshing(false);
-  }, [page, isFetching]);
+    refreshList(grid.clearSelection);
+  }, [layout, refreshList, grid.clearSelection]);
 
   useEffect(() => {
     const unsubscribe = (navigation as { addListener: (event: string, cb: () => void) => () => void }).addListener(
       'inventoryTabRepress',
-      () => {
-        handleRefresh();
-      }
+      handleRefresh
     );
     return unsubscribe;
   }, [navigation, handleRefresh]);
@@ -222,197 +171,22 @@ export default function InventoryScreen({ navigation }: any) {
     return () => backHandler.remove();
   }, [gridSelection.active, grid.clearSelection]);
 
-  const [updateIngredient] = useUpdateIngredientMutation();
-  const [deleteIngredient] = useDeleteIngredientMutation();
+  const handleStepAdjust = useCallback(
+    (ingredientId: string, type: 'add' | 'deduct', baseAdjustment: number) => {
+      if (baseAdjustment <= 0) return;
+      const delta = type === 'add' ? baseAdjustment : -baseAdjustment;
+      queueAdjust(ingredientId, delta);
+    },
+    [queueAdjust]
+  );
 
-  const handleStepAdjust = useCallback(async (ingredient: IngredientData, type: 'add' | 'deduct', baseAdjustment: number) => {
-    setUpdatingId(ingredient._id);
-    const ratio = ingredient.unitRelation.conversionRatio;
-    let newBaseQuantity = ingredient.currentStock;
-
-    if (type === 'add') {
-      newBaseQuantity += baseAdjustment;
-    } else {
-      newBaseQuantity = Math.max(0, newBaseQuantity - baseAdjustment);
-    }
-
-    try {
-      await updateIngredient({
-        id: ingredient._id,
-        body: {
-          name: ingredient.name,
-          minThreshold: ingredient.minThreshold,
-          purchaseUnit: ingredient.unitRelation.purchaseUnit,
-          baseUnit: ingredient.unitRelation.baseUnit,
-          conversionRatio: ratio,
-          currentStock: newBaseQuantity,
-          image: ingredient.image || undefined,
-        },
-      }).unwrap();
-      setPage(1);
-    } catch (err: any) {
-      dispatch(
-        showToast({
-          title: 'Adjustment Failed',
-          message: err.data?.error || 'Failed to update stock.',
-          type: 'error',
-        })
-      );
-    } finally {
-      setUpdatingId(null);
-    }
-  }, [dispatch, updateIngredient]);
-
-  const loadMore = useCallback(() => {
-    if (!canLoadMoreRef.current) return;
-    if (Date.now() < suppressLoadMoreUntilRef.current) return;
-    if (isFetching || isManualRefreshing || !hasMore) return;
-
-    if (loadMoreDebounceRef.current) {
-      clearTimeout(loadMoreDebounceRef.current);
-    }
-
-    loadMoreDebounceRef.current = setTimeout(() => {
-      loadMoreDebounceRef.current = null;
-      setPage((current) => current + 1);
-    }, 250);
-  }, [isFetching, isManualRefreshing, hasMore]);
-
-  useEffect(() => {
-    return () => {
-      if (loadMoreDebounceRef.current) {
-        clearTimeout(loadMoreDebounceRef.current);
-      }
-    };
-  }, []);
-
-  const enableLoadMore = useCallback(() => {
-    canLoadMoreRef.current = true;
-  }, []);
-
-  const executeBulkDelete = async () => {
-    if (bulkDeleteItems.length === 0) return;
-    const targets = bulkDeleteItems;
-    setBulkDeleteItems([]);
-
-    try {
-      setUpdatingId('bulk');
-      const results = await Promise.allSettled(
-        targets.map((item) => deleteIngredient(item._id).unwrap())
-      );
-      const successCount = results.filter((r) => r.status === 'fulfilled').length;
-      const failCount = targets.length - successCount;
-
-      if (successCount > 0) {
-        setPage(1);
-        dispatch(
-          showToast({
-            title: 'Deleted',
-            message: `${successCount} ingredient${successCount === 1 ? '' : 's'} removed.`,
-            type: 'success',
-          })
-        );
-      }
-      if (failCount > 0) {
-        dispatch(
-          showToast({
-            title: 'Partial Delete',
-            message: `${failCount} item${failCount === 1 ? '' : 's'} could not be deleted.`,
-            type: 'error',
-          })
-        );
-      }
-      setSelectionClearToken((t) => t + 1);
-    } catch (err: any) {
-      dispatch(
-        showToast({
-          title: 'Delete Failed',
-          message: err.data?.error || 'Failed to delete ingredients.',
-          type: 'error',
-        })
-      );
-    } finally {
-      setUpdatingId(null);
-    }
-  };
-
-  const handleDeleteIngredient = (ingredient: IngredientData) => {
-    setIngredientToDelete(ingredient);
-  };
-
-  const executeDeleteIngredient = async () => {
-    if (!ingredientToDelete) return;
-    const target = ingredientToDelete;
-    setIngredientToDelete(null);
-
-    try {
-      setUpdatingId(target._id);
-      await deleteIngredient(target._id).unwrap();
-      setPage(1);
-      dispatch(
-        showToast({
-          title: 'Success',
-          message: `Ingredient "${target.name}" successfully deleted.`,
-          type: 'success',
-        })
-      );
-    } catch (err: any) {
-      dispatch(
-        showToast({
-          title: 'Delete Failed',
-          message: err.data?.error || 'Failed to delete ingredient.',
-          type: 'error',
-        })
-      );
-    } finally {
-      setUpdatingId(null);
-    }
-  };
-
-  React.useLayoutEffect(() => {
-    navigation.setOptions({
-      headerRight: () => (
-        <View className="flex-row items-center mr-6" style={{ gap: 8 }}>
-          {prefsLoaded ? (
-            <View className="flex-row bg-card dark:bg-card-dark border border-border dark:border-border-dark rounded-xl p-0.5">
-              <TouchableOpacity
-                onPress={() => handleLayoutChange('list')}
-                activeOpacity={0.7}
-                className={`w-9 h-9 rounded-lg justify-center items-center ${layout === 'list' ? 'bg-primary/15' : ''}`}
-              >
-                <Ionicons name="list-outline" size={18} color={layout === 'list' ? primary : muted} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => handleLayoutChange('grid')}
-                activeOpacity={0.7}
-                className={`w-9 h-9 rounded-lg justify-center items-center ${layout === 'grid' ? 'bg-primary/15' : ''}`}
-              >
-                <Ionicons name="grid-outline" size={18} color={layout === 'grid' ? primary : muted} />
-              </TouchableOpacity>
-            </View>
-          ) : null}
-          <TouchableOpacity
-            onPress={() => {
-              setEditingIngredient(null);
-              setIsModalVisible(true);
-            }}
-            activeOpacity={0.7}
-            className="w-10 h-10 rounded-xl bg-card dark:bg-card-dark border border-border dark:border-border-dark justify-center items-center shadow-sm"
-          >
-            <Ionicons name="add" size={22} color={primary} />
-          </TouchableOpacity>
-        </View>
-      ),
-    });
-  }, [navigation, primary, muted, layout, prefsLoaded]);
-
-  const activeSortLabel = SORT_OPTIONS.find((option) => option.value === sortBy)?.label ?? 'Sort';
-  const isScreenReady = prefsLoaded;
-  const hasLoadedInventory = data !== undefined;
-  const isInitialInventoryLoading = !hasLoadedInventory && (isLoading || isFetching);
-  const showFullScreenLoader = !isScreenReady || isManualRefreshing || isInitialInventoryLoading;
-  const isLoadingMore = isFetching && page > 1 && !isManualRefreshing;
-  const horizontalPadding = layout === 'grid' ? GRID_HORIZONTAL_PADDING : 24;
+  const onSortChange = useCallback(
+    (newSort: SortOption) => {
+      handleSortChange(newSort);
+      setShowSortMenu(false);
+    },
+    [handleSortChange]
+  );
 
   const openEdit = useCallback((item: IngredientData) => {
     setEditingIngredient(item);
@@ -424,42 +198,70 @@ export default function InventoryScreen({ navigation }: any) {
     setIsAdjustModalVisible(true);
   }, []);
 
+  const handleScrollBegin = useCallback(() => {
+    enableLoadMore();
+    setShowSortMenu(false);
+  }, [enableLoadMore]);
+
+  const horizontalPadding = layout === 'grid' ? GRID_HORIZONTAL_PADDING : 24;
+
+  const listEmpty = useMemo(
+    () => (
+      <InventoryListStates
+        isInitialLoading={isInitialInventoryLoading}
+        error={error}
+        onRetry={handleRefresh}
+        hasLoadedInventory={hasLoadedInventory}
+        totalCount={totalCount}
+        debouncedSearch={debouncedSearch}
+        searchQuery={searchQuery}
+        displayCount={displayIngredients.length}
+        isFetching={isFetching}
+      />
+    ),
+    [
+      isInitialInventoryLoading,
+      error,
+      handleRefresh,
+      hasLoadedInventory,
+      totalCount,
+      debouncedSearch,
+      searchQuery,
+      displayIngredients.length,
+      isFetching,
+    ]
+  );
+
+  const sharedContentContainerStyle = useMemo((): ViewStyle => ({
+    width: '100%',
+    paddingHorizontal: horizontalPadding,
+    paddingTop: 8,
+    paddingBottom: insets.bottom + 120,
+  }), [horizontalPadding, insets.bottom]);
+
   const renderListItem: ListRenderItem<IngredientData> = useCallback(
     ({ item }) => (
       <IngredientCard
         ingredient={item}
-        isUpdating={updatingId === item._id}
+        isUpdating={isSyncing(item._id)}
         onEdit={() => openEdit(item)}
         onAdjust={() => openAdjust(item)}
-        onStepAdjust={(type, baseAmount) => handleStepAdjust(item, type, baseAmount)}
-        onDelete={() => handleDeleteIngredient(item)}
+        onStepAdjust={(type, baseAmount) => handleStepAdjust(item._id, type, baseAmount)}
+        onDelete={() => deleteActions.requestDelete(item)}
       />
     ),
-    [updatingId, openEdit, openAdjust]
+    [isSyncing, handleStepAdjust, openEdit, openAdjust, deleteActions.requestDelete, pendingVersion]
   );
 
   const renderGridRow: ListRenderItem<GridRowData> = useCallback(
     ({ item: row }) => {
       const emptySlots = GRID_COLUMNS - row.items.length;
-      const spacerWidth =
-        emptySlots > 0 ? emptySlots * cardWidth + (emptySlots - 1) * GRID_GAP : 0;
+      const spacerWidth = emptySlots > 0 ? emptySlots * cardWidth + (emptySlots - 1) * GRID_GAP : 0;
 
       return (
-        <View
-          style={{
-            width: '100%',
-            minHeight: gridCardHeight,
-            marginBottom: GRID_GAP,
-          }}
-          collapsable={false}
-        >
+        <View style={{ width: '100%', height: gridCardHeight, marginBottom: GRID_GAP }} collapsable={false}>
           <View
-            style={{
-              flexDirection: 'row',
-              gap: GRID_GAP,
-              width: '100%',
-              minHeight: gridCardHeight,
-            }}
+            style={{ flexDirection: 'row', gap: GRID_GAP, width: '100%', height: gridCardHeight, alignItems: 'stretch' }}
             collapsable={false}
           >
             {row.items.map((item) => (
@@ -467,7 +269,8 @@ export default function InventoryScreen({ navigation }: any) {
                 key={item._id}
                 ingredient={item}
                 cardWidth={cardWidth}
-                isUpdating={updatingId === item._id}
+                cardHeight={gridCardHeight}
+                isUpdating={isSyncing(item._id)}
                 selectionMode={grid.selectionMode}
                 isSelected={grid.selectedIds.has(item._id)}
                 onEdit={openEdit}
@@ -477,10 +280,7 @@ export default function InventoryScreen({ navigation }: any) {
               />
             ))}
             {spacerWidth > 0 ? (
-              <View
-                style={{ width: spacerWidth, minHeight: gridCardHeight }}
-                collapsable={false}
-              />
+              <View style={{ width: spacerWidth, height: gridCardHeight }} collapsable={false} />
             ) : null}
           </View>
         </View>
@@ -491,11 +291,12 @@ export default function InventoryScreen({ navigation }: any) {
       gridCardHeight,
       grid.selectionMode,
       grid.selectedIds,
-      updatingId,
+      isSyncing,
       openEdit,
       grid.enterSelectionWith,
       grid.toggleSelect,
       handleStepAdjust,
+      pendingVersion,
     ]
   );
 
@@ -508,288 +309,91 @@ export default function InventoryScreen({ navigation }: any) {
     []
   );
 
-  const listHeader = useMemo(() => {
-    if (showFullScreenLoader) return null;
-
-    return (
-      <View style={{ width: '100%' }} collapsable={false}>
-        {lowStockCount > 0 ? (
-          <Card className="mb-6 bg-red-500/10 border-red-500/20">
-            <View className="flex-row items-center space-x-3">
-              <View className="p-2 rounded-xl bg-red-500/20">
-                <Ionicons name="warning" size={20} color={danger} />
-              </View>
-              <View className="flex-1 ml-3">
-                <Text className="text-sm font-black text-text dark:text-text-dark">
-                  {lowStockCount} {lowStockCount === 1 ? 'Item' : 'Items'} Below Threshold!
-                </Text>
-                <Text className="text-xs text-muted dark:text-muted-dark mt-0.5 leading-relaxed">
-                  Some ingredients are running critically low. Reorder soon to maintain seamless kitchen operations.
-                </Text>
-              </View>
-            </View>
-          </Card>
-        ) : null}
-
-        <View className="mb-4 flex-row items-center bg-card dark:bg-card-dark border border-border dark:border-border-dark rounded-2xl px-4 py-3 shadow-sm">
-          <Ionicons name="search-outline" size={18} color={muted} style={{ marginRight: 8 }} />
-          <TextInput
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder="Search ingredients..."
-            placeholderTextColor={muted}
-            style={{
-              flex: 1,
-              fontSize: 14,
-              fontWeight: '600',
-              color: text,
-              paddingVertical: 0,
-            }}
-          />
-          {searchQuery ? (
-            <TouchableOpacity onPress={() => setSearchQuery('')} activeOpacity={0.7}>
-              <Ionicons name="close-circle" size={18} color={muted} />
-            </TouchableOpacity>
-          ) : null}
-        </View>
-
-        <View className="mb-6">
-          <TouchableOpacity
-            onPress={() => setShowSortMenu((prev) => !prev)}
-            activeOpacity={0.7}
-            className="flex-row items-center justify-between bg-card dark:bg-card-dark border border-border dark:border-border-dark rounded-2xl px-3 py-2.5 shadow-sm"
-          >
-            <View className="flex-row items-center">
-              <Ionicons name="funnel-outline" size={14} color={primary} />
-              <Text className="text-[10px] font-black uppercase text-text dark:text-text-dark ml-2">
-                {activeSortLabel}
-              </Text>
-            </View>
-            <Ionicons name={showSortMenu ? 'chevron-up' : 'chevron-down'} size={14} color={muted} />
-          </TouchableOpacity>
-
-          {showSortMenu ? (
-            <View
-              className="bg-card dark:bg-card-dark border border-border dark:border-border-dark rounded-2xl p-2 shadow-sm mt-2"
-              style={{ gap: 4 }}
-            >
-              {SORT_OPTIONS.map((option) => (
-                <TouchableOpacity
-                  key={option.value}
-                  onPress={() => handleSortChange(option.value)}
-                  activeOpacity={0.7}
-                  className={`flex-row items-center px-3 py-2.5 rounded-xl ${sortBy === option.value ? 'bg-primary/10' : ''}`}
-                >
-                  <Ionicons
-                    name={option.icon as keyof typeof Ionicons.glyphMap}
-                    size={14}
-                    color={sortBy === option.value ? primary : muted}
-                  />
-                  <Text
-                    className={`text-xs font-bold ml-2 ${sortBy === option.value ? 'text-primary' : 'text-text dark:text-text-dark'}`}
-                  >
-                    {option.label}
-                  </Text>
-                  {sortBy === option.value ? (
-                    <Ionicons name="checkmark" size={14} color={primary} style={{ marginLeft: 'auto' }} />
-                  ) : null}
-                </TouchableOpacity>
-              ))}
-            </View>
-          ) : null}
-        </View>
-
-        {gridSelection.active && layout === 'grid' ? (
-          <View className="mb-4 bg-card dark:bg-card-dark border border-primary/30 rounded-2xl px-3 py-2.5 shadow-sm">
-            <View className="flex-row items-center justify-between">
-              <TouchableOpacity
-                onPress={() => grid.clearSelection()}
-                activeOpacity={0.7}
-                className="flex-row items-center px-2 py-1.5 rounded-lg bg-border/20"
-              >
-                <Ionicons name="close" size={16} color={muted} />
-                <Text className="text-xs font-bold text-muted dark:text-muted-dark ml-1">Cancel</Text>
-              </TouchableOpacity>
-
-              <Text className="text-xs font-black text-text dark:text-text-dark">
-                {gridSelection.count} of {gridSelection.total} selected
-              </Text>
-
-              <View className="flex-row items-center" style={{ gap: 6 }}>
-                <TouchableOpacity
-                  onPress={() => gridSelection.allSelected ? grid.clearSelection() : grid.selectAll()}
-                  activeOpacity={0.7}
-                  className="px-3 h-9 rounded-xl bg-primary/10 border border-primary/20 items-center justify-center"
-                >
-                  <Text className="text-[10px] font-black text-primary">
-                    {gridSelection.allSelected ? 'Unselect All' : 'Select All'}
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={() => grid.deleteSelected()}
-                  disabled={gridSelection.count === 0}
-                  activeOpacity={0.7}
-                  className={`w-9 h-9 rounded-xl items-center justify-center ${
-                    gridSelection.count > 0 ? 'bg-red-500/15 border border-red-500/30' : 'bg-border/20'
-                  }`}
-                >
-                  <Ionicons name="trash-outline" size={18} color={gridSelection.count > 0 ? danger : muted} />
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        ) : null}
-      </View>
-    );
-  }, [
-    showFullScreenLoader,
-    lowStockCount,
-    danger,
-    muted,
-    searchQuery,
-    text,
-    activeSortLabel,
-    showSortMenu,
-    sortBy,
-    primary,
-    gridSelection,
-    layout,
-    grid,
-  ]);
-
-  const listEmpty = useMemo(() => {
-    if (showFullScreenLoader) {
-      return (
-        <View className="py-24 justify-center items-center">
-          <ActivityIndicator size="large" color={primary} />
-          <Text className="text-xs text-muted dark:text-muted-dark mt-3 font-semibold uppercase tracking-widest">
-            {isManualRefreshing ? 'Refreshing...' : 'Loading inventory...'}
-          </Text>
-        </View>
-      );
-    }
-
-    if (error) {
-      return (
-        <View className="py-20 justify-center items-center">
-          <Text className="text-red-500 text-xs font-bold mb-4">Error fetching inventory</Text>
-          <TouchableOpacity onPress={handleRefresh} className="px-4 py-2 rounded-xl bg-card border border-border">
-            <Text className="text-primary text-xs font-black uppercase">Retry</Text>
-          </TouchableOpacity>
-        </View>
-      );
-    }
-
-    if (hasLoadedInventory && totalCount === 0 && !debouncedSearch) {
-      return (
-        <Card className="p-8 items-center justify-center">
-          <Text className="text-muted dark:text-muted-dark text-xs font-bold text-center">
-            No ingredients in stock. Tap the '+' button in the top right to register your first ingredient.
-          </Text>
-        </Card>
-      );
-    }
-
-    if (hasLoadedInventory && ingredients.length === 0) {
-      return (
-        <Card className="p-8 items-center justify-center">
-          <Text className="text-muted dark:text-muted-dark text-xs font-bold text-center">
-            No ingredients match "{searchQuery}"
-          </Text>
-        </Card>
-      );
-    }
-
-    return null;
-  }, [showFullScreenLoader, isManualRefreshing, primary, error, handleRefresh, hasLoadedInventory, totalCount, ingredients.length, debouncedSearch, searchQuery]);
-
-  const listFooter = useMemo(() => {
-    if (!isLoadingMore) return null;
-    return (
-      <View className="py-6 items-center">
-        <ActivityIndicator size="small" color={primary} />
-      </View>
-    );
-  }, [isLoadingMore, primary]);
-
-  const sharedContentContainerStyle = useMemo((): ViewStyle => ({
-    width: '100%',
-    paddingHorizontal: horizontalPadding,
-    paddingTop: 16,
-    paddingBottom: insets.bottom + 120,
-  }), [horizontalPadding, insets.bottom]);
-
-  const sharedRefreshControl = useMemo(() => (
-    <RefreshControl
-      refreshing={isManualRefreshing}
-      onRefresh={handleRefresh}
-      tintColor={primary}
-      colors={[primary]}
-      progressBackgroundColor={isDark ? '#161618' : '#FFFFFF'}
-    />
-  ), [isManualRefreshing, handleRefresh, primary, isDark]);
+  const listData = isInitialInventoryLoading ? [] : displayIngredients;
+  const gridData = isInitialInventoryLoading ? [] : gridRows;
 
   return (
     <ScreenContainer>
       <StatusBar style={isDark ? 'light' : 'dark'} />
 
+      <InventoryToolbar
+        horizontalPadding={horizontalPadding}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        isRefreshing={isManualRefreshing}
+        onRefresh={handleRefresh}
+        showSortMenu={showSortMenu}
+        onToggleSortMenu={() => setShowSortMenu((prev) => !prev)}
+        showGridSelection={gridSelection.active && layout === 'grid'}
+        gridSelection={gridSelection}
+        onClearSelection={grid.clearSelection}
+        onSelectAll={grid.selectAll}
+        onDeleteSelected={grid.deleteSelected}
+      />
+
+      <InventorySortMenu
+        visible={showSortMenu}
+        sortBy={sortBy}
+        horizontalPadding={horizontalPadding}
+        topInset={insets.top}
+        onClose={() => setShowSortMenu(false)}
+        onSortChange={onSortChange}
+      />
+
       {layout === 'grid' ? (
         <View style={{ flex: 1, width: '100%' }} collapsable={false}>
-        <FlatList
-          key="inventory-grid"
-          style={{ flex: 1, width: '100%' }}
-          data={showFullScreenLoader ? [] : gridRows}
-          extraData={grid.selectionTick}
-          keyExtractor={(item) => item.id}
-          renderItem={renderGridRow}
-          CellRendererComponent={renderFullWidthCell}
-          ListHeaderComponent={listHeader}
-          ListEmptyComponent={listEmpty}
-          ListFooterComponent={listFooter}
-          contentContainerStyle={sharedContentContainerStyle}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          nestedScrollEnabled
-          scrollEventThrottle={16}
-          onScrollBeginDrag={enableLoadMore}
-          onMomentumScrollBegin={enableLoadMore}
-          onEndReached={loadMore}
-          onEndReachedThreshold={0.2}
-          removeClippedSubviews={false}
-          maxToRenderPerBatch={6}
-          updateCellsBatchingPeriod={50}
-          windowSize={9}
-          initialNumToRender={6}
-          refreshControl={sharedRefreshControl}
-        />
+          <FlatList
+            ref={gridRef}
+            style={{ flex: 1, width: '100%' }}
+            data={gridData}
+            extraData={{ selectionTick: grid.selectionTick, pendingVersion, sortBy, listSortKey }}
+            keyExtractor={(item) => item.id}
+            renderItem={renderGridRow}
+            CellRendererComponent={renderFullWidthCell}
+            ListEmptyComponent={listEmpty}
+            ListFooterComponent={<ListLoadMoreFooter visible={isLoadingMore} />}
+            contentContainerStyle={sharedContentContainerStyle}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled
+            scrollEventThrottle={16}
+            onScrollBeginDrag={handleScrollBegin}
+            onMomentumScrollBegin={handleScrollBegin}
+            onEndReached={isManualRefreshing ? undefined : loadMore}
+            onEndReachedThreshold={0.2}
+            removeClippedSubviews={false}
+            maxToRenderPerBatch={6}
+            updateCellsBatchingPeriod={1}
+            windowSize={9}
+            initialNumToRender={6}
+          />
         </View>
       ) : (
         <FlatList
+          ref={listRef}
           key="inventory-list"
           style={{ flex: 1, width: '100%' }}
-          data={showFullScreenLoader ? [] : ingredients}
+          data={listData}
+          extraData={{ pendingVersion, sortBy, listSortKey }}
           keyExtractor={(item) => item._id}
           renderItem={renderListItem}
-          ListHeaderComponent={listHeader}
           ListEmptyComponent={listEmpty}
-          ListFooterComponent={listFooter}
+          ListFooterComponent={<ListLoadMoreFooter visible={isLoadingMore} />}
           contentContainerStyle={sharedContentContainerStyle}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           nestedScrollEnabled
           scrollEventThrottle={16}
-          onScrollBeginDrag={enableLoadMore}
-          onMomentumScrollBegin={enableLoadMore}
-          onEndReached={loadMore}
+          onScrollBeginDrag={handleScrollBegin}
+          onMomentumScrollBegin={handleScrollBegin}
+          onEndReached={isManualRefreshing ? undefined : loadMore}
           onEndReachedThreshold={0.2}
           removeClippedSubviews={false}
-          maxToRenderPerBatch={8}
-          updateCellsBatchingPeriod={50}
-          windowSize={9}
-          initialNumToRender={8}
+          maxToRenderPerBatch={10}
+          updateCellsBatchingPeriod={1}
+          windowSize={11}
+          initialNumToRender={10}
           ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
-          refreshControl={sharedRefreshControl}
         />
       )}
 
@@ -812,24 +416,24 @@ export default function InventoryScreen({ navigation }: any) {
       />
 
       <ConfirmModal
-        visible={ingredientToDelete !== null}
+        visible={deleteActions.ingredientToDelete !== null}
         title="Delete Ingredient"
-        message={`Are you sure you want to delete "${ingredientToDelete?.name}"? This action cannot be undone.`}
+        message={`Are you sure you want to delete "${deleteActions.ingredientToDelete?.name}"? This action cannot be undone.`}
         confirmLabel="Delete"
-        isDestructive={true}
-        onConfirm={executeDeleteIngredient}
-        onCancel={() => setIngredientToDelete(null)}
+        isDestructive
+        onConfirm={deleteActions.executeDeleteIngredient}
+        onCancel={deleteActions.cancelDelete}
       />
 
       <ConfirmModal
-        visible={bulkDeleteItems.length > 0}
+        visible={deleteActions.bulkDeleteItems.length > 0}
         title="Delete Selected Items"
-        message={`Are you sure you want to delete ${bulkDeleteItems.length} item${bulkDeleteItems.length === 1 ? '' : 's'}? If you tap Yes, they will be deleted. If you tap Cancel, nothing will be deleted.`}
+        message={`Are you sure you want to delete ${deleteActions.bulkDeleteItems.length} item${deleteActions.bulkDeleteItems.length === 1 ? '' : 's'}? If you tap Yes, they will be deleted. If you tap Cancel, nothing will be deleted.`}
         confirmLabel="Yes, Delete"
         cancelLabel="Cancel"
-        isDestructive={true}
-        onConfirm={executeBulkDelete}
-        onCancel={() => setBulkDeleteItems([])}
+        isDestructive
+        onConfirm={deleteActions.executeBulkDelete}
+        onCancel={deleteActions.cancelBulkDelete}
       />
     </ScreenContainer>
   );

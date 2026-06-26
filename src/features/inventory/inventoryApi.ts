@@ -1,7 +1,10 @@
 import { baseApi } from '../../services/api';
 import type { SortOption } from './inventoryUtils';
+import { isStockLevelSortOption, normalizeIngredientRecord } from './inventoryUtils';
 
 export const INGREDIENTS_PAGE_SIZE = 25;
+/** Single request when sorting by stock level — avoids reorder flicker while pages load. */
+export const STOCK_SORT_FETCH_LIMIT = 500;
 
 export interface IngredientsQueryArgs {
   page: number;
@@ -22,13 +25,6 @@ export interface IngredientsPageResponse {
   lowStockCount: number;
 }
 
-export interface StockBatch {
-  purchaseDate: string;
-  originalQuantity: number;
-  remainingQuantity: number;
-  costPerBaseUnit: number;
-}
-
 export interface UnitRelation {
   purchaseUnit: 'kg' | 'liter' | 'pack';
   baseUnit: 'g' | 'ml' | 'pcs';
@@ -47,7 +43,8 @@ export interface IngredientData {
   minThreshold: number;
   stockLevel?: StockLevel;
   unitRelation: UnitRelation;
-  batches: StockBatch[];
+  /** Price per purchase unit (₹/kg, ₹/L, ₹/pack) */
+  purchasePrice: number;
   image: string | null;
   alerts: {
     isAcknowledged: boolean;
@@ -63,20 +60,33 @@ export interface CreateIngredientPayload {
   baseUnit: 'g' | 'ml' | 'pcs';
   conversionRatio: number;
   initialQuantity: number;
-  purchaseCost: number;
+  purchasePrice: number;
   image?: string;
 }
 
 export interface UpdateIngredientPayload {
-  name: string;
+  name?: string;
   category?: string;
-  minThreshold: number;
-  purchaseUnit: 'kg' | 'liter' | 'pack';
-  baseUnit: 'g' | 'ml' | 'pcs';
-  conversionRatio: number;
-  currentStock: number;
-  image?: string;
-  purchaseUnitPrice?: number;
+  minThreshold?: number;
+  purchaseUnit?: 'kg' | 'liter' | 'pack';
+  baseUnit?: 'g' | 'ml' | 'pcs';
+  conversionRatio?: number;
+  currentStock?: number;
+  image?: string | null;
+  purchasePrice?: number;
+}
+
+export interface AdjustStockPayload {
+  id: string;
+  delta: number;
+  purchasePrice?: number;
+}
+
+export interface AdjustStockResponse {
+  success: boolean;
+  message: string;
+  ingredient: IngredientData;
+  lowStockCount: number;
 }
 
 export interface UploadSignatureResponse {
@@ -99,7 +109,9 @@ function normalizeIngredientsResponse(
     lowStockCount?: number;
   };
 
-  const ingredients = Array.isArray(payload.ingredients) ? payload.ingredients : [];
+  const ingredients = (Array.isArray(payload.ingredients) ? payload.ingredients : []).map(
+    normalizeIngredientRecord
+  );
 
   if (payload.pagination && typeof payload.pagination.hasMore === 'boolean') {
     return {
@@ -155,6 +167,32 @@ function dedupeIngredients(items: IngredientData[]): IngredientData[] {
   return unique;
 }
 
+function patchIngredientInCache(
+  draft: IngredientsPageResponse,
+  ingredient: IngredientData,
+  lowStockCount?: number
+) {
+  const index = draft.ingredients.findIndex((item) => item._id === ingredient._id);
+  if (index >= 0) {
+    const previous = draft.ingredients[index];
+    const merged = normalizeIngredientRecord({ ...previous, ...ingredient });
+    draft.ingredients[index] = {
+      ...merged,
+      purchasePrice: merged.purchasePrice > 0 ? merged.purchasePrice : previous.purchasePrice,
+      image: ingredient.image ?? previous.image,
+    };
+  }
+  if (typeof lowStockCount === 'number') {
+    draft.lowStockCount = lowStockCount;
+  }
+}
+
+function ingredientsCacheKey(args: IngredientsQueryArgs): string {
+  const stockLevelSort = isStockLevelSortOption(args.sortBy);
+  const sortKey = stockLevelSort ? 'stock-level' : args.sortBy;
+  return `${args.search}|${sortKey}|${args.limit}`;
+}
+
 export const inventoryApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getIngredients: builder.query<IngredientsPageResponse, IngredientsQueryArgs>({
@@ -164,12 +202,13 @@ export const inventoryApi = baseApi.injectEndpoints({
           page,
           limit,
           search: search || undefined,
-          sortBy,
+          sortBy:
+            sortBy === 'stock-asc' || sortBy === 'stock-desc' ? 'name-asc' : sortBy,
         },
       }),
       transformResponse: (response: unknown, _meta, arg) =>
         normalizeIngredientsResponse(response, arg),
-      serializeQueryArgs: ({ queryArgs }) => `${queryArgs.search}|${queryArgs.sortBy}|${queryArgs.limit}`,
+      serializeQueryArgs: ({ queryArgs }) => ingredientsCacheKey(queryArgs),
       merge: (currentCache, newItems, { arg }) => {
         if (arg.page === 1 || !currentCache?.ingredients) {
           return {
@@ -182,8 +221,12 @@ export const inventoryApi = baseApi.injectEndpoints({
           ingredients: dedupeIngredients([...currentCache.ingredients, ...newItems.ingredients]),
         };
       },
-      forceRefetch: ({ currentArg, previousArg }) =>
-        currentArg?.page !== previousArg?.page,
+      forceRefetch: ({ currentArg, previousArg }) => {
+        if (!currentArg || !previousArg) return true;
+        if (ingredientsCacheKey(currentArg) !== ingredientsCacheKey(previousArg)) return true;
+        return currentArg.page !== previousArg.page;
+      },
+      keepUnusedDataFor: 300,
       providesTags: (result) =>
         result
           ? [
@@ -206,7 +249,42 @@ export const inventoryApi = baseApi.injectEndpoints({
         method: 'PUT',
         body,
       }),
-      invalidatesTags: ['Ingredient'],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled, getState }) {
+        try {
+          const { data } = await queryFulfilled;
+          for (const args of inventoryApi.util.selectCachedArgsForQuery(getState(), 'getIngredients')) {
+            dispatch(
+              inventoryApi.util.updateQueryData('getIngredients', args, (draft) => {
+                patchIngredientInCache(draft, data.ingredient);
+              })
+            );
+          }
+        } catch {
+          // Toast handled in UI
+        }
+      },
+      invalidatesTags: (_result, _error, { id }) => [{ type: 'Ingredient', id }],
+    }),
+    adjustStock: builder.mutation<AdjustStockResponse, AdjustStockPayload>({
+      query: ({ id, delta, purchasePrice }) => ({
+        url: `/ingredients/${id}/stock`,
+        method: 'PATCH',
+        body: { delta, ...(purchasePrice !== undefined ? { purchasePrice } : {}) },
+      }),
+      async onQueryStarted(_arg, { dispatch, queryFulfilled, getState }) {
+        try {
+          const { data } = await queryFulfilled;
+          for (const args of inventoryApi.util.selectCachedArgsForQuery(getState(), 'getIngredients')) {
+            dispatch(
+              inventoryApi.util.updateQueryData('getIngredients', args, (draft) => {
+                patchIngredientInCache(draft, data.ingredient, data.lowStockCount);
+              })
+            );
+          }
+        } catch {
+          // Error toast handled by useDebouncedStockAdjust
+        }
+      },
     }),
     deleteIngredient: builder.mutation<{ success: boolean; message: string }, string>({
       query: (id) => ({
@@ -226,8 +304,7 @@ export const {
   useGetIngredientsQuery,
   useCreateIngredientMutation,
   useUpdateIngredientMutation,
+  useAdjustStockMutation,
   useDeleteIngredientMutation,
-  useGetUploadSignatureQuery,
   useLazyGetUploadSignatureQuery,
 } = inventoryApi;
-export default inventoryApi;

@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppSelector } from '../store/store';
 import { selectIsDark } from '../store/themeSlice';
+import { COLORS } from '../config/constants';
 
 interface AnimatedTabItemProps {
   routeKey: string;
@@ -24,7 +25,6 @@ function AnimatedTabItem({
   onPress,
   onLongPress,
 }: AnimatedTabItemProps) {
-  // Spring animation values for bouncy icon/label feedback
   const scaleVal = useRef(new Animated.Value(isFocused ? 1.08 : 1)).current;
   const opacityVal = useRef(new Animated.Value(isFocused ? 1 : 0.75)).current;
   const activeBarWidth = useRef(new Animated.Value(isFocused ? 14 : 0)).current;
@@ -46,18 +46,17 @@ function AnimatedTabItem({
         toValue: isFocused ? 14 : 0,
         friction: 8,
         tension: 120,
-        useNativeDriver: false, // Width animations require layout, cannot use native driver
+        useNativeDriver: false,
       }),
     ]).start();
   }, [isFocused]);
 
-  // Map route names to icons
   let iconName: keyof typeof Ionicons.glyphMap = 'cube-outline';
   if (routeName.toLowerCase().includes('dashboard')) {
     iconName = isFocused ? 'grid' : 'grid-outline';
   } else if (
-    routeName.toLowerCase().includes('owner') || 
-    routeName.toLowerCase().includes('user') || 
+    routeName.toLowerCase().includes('owner') ||
+    routeName.toLowerCase().includes('user') ||
     routeName.toLowerCase().includes('manage')
   ) {
     iconName = isFocused ? 'people' : 'people-outline';
@@ -66,8 +65,8 @@ function AnimatedTabItem({
   } else if (routeName.toLowerCase().includes('recipe')) {
     iconName = isFocused ? 'restaurant' : 'restaurant-outline';
   } else if (
-    routeName.toLowerCase().includes('sales') || 
-    routeName.toLowerCase().includes('log') || 
+    routeName.toLowerCase().includes('sales') ||
+    routeName.toLowerCase().includes('log') ||
     routeName.toLowerCase().includes('counter')
   ) {
     iconName = isFocused ? 'receipt' : 'receipt-outline';
@@ -87,20 +86,16 @@ function AnimatedTabItem({
       className="items-center justify-center flex-1"
       activeOpacity={0.75}
     >
-      <Animated.View 
-        style={{ 
-          transform: [{ scale: scaleVal }], 
+      <Animated.View
+        style={{
+          transform: [{ scale: scaleVal }],
           opacity: opacityVal,
           alignItems: 'center',
           justifyContent: 'center',
-          minWidth: 50
+          minWidth: 50,
         }}
       >
-        <Ionicons
-          name={iconName}
-          size={21}
-          color={isFocused ? activeColor : inactiveColor}
-        />
+        <Ionicons name={iconName} size={21} color={isFocused ? activeColor : inactiveColor} />
         <Text
           style={{
             color: isFocused ? activeColor : inactiveColor,
@@ -113,9 +108,7 @@ function AnimatedTabItem({
         >
           {label}
         </Text>
-        
-        {/* Active indicator bar - spring expanding */}
-        <Animated.View 
+        <Animated.View
           style={{
             width: activeBarWidth,
             height: 2.5,
@@ -132,30 +125,46 @@ function AnimatedTabItem({
 export default function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const isDark = useAppSelector(selectIsDark);
-  
-  // Calculate bottom margin to float safely above system navigation bar or home indicator.
+  const systemNavColor = isDark ? COLORS.dark.background : COLORS.light.background;
   const bottomMargin = insets.bottom + (Platform.OS === 'ios' ? 12 : 16);
 
   return (
-    <View 
-      style={[
-        styles.container, 
-        { 
-          bottom: bottomMargin,
-          backgroundColor: isDark ? 'rgba(10, 10, 12, 0.85)' : 'rgba(255, 255, 255, 0.85)',
-          borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(24, 24, 27, 0.08)',
-        }
-      ]}
-    >
-      <View className="flex-row justify-around items-center w-full px-2 py-3">
+    <>
+      {insets.bottom > 0 ? (
+        <View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: insets.bottom,
+            backgroundColor: systemNavColor,
+            zIndex: 1,
+          }}
+        />
+      ) : null}
+
+      <View
+        style={[
+          styles.container,
+          {
+            bottom: bottomMargin,
+            backgroundColor: isDark ? 'rgba(10, 10, 12, 0.85)' : 'rgba(255, 255, 255, 0.85)',
+            borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(24, 24, 27, 0.08)',
+            zIndex: 2,
+          },
+        ]}
+      >
+        <View className="flex-row justify-around items-center w-full px-2 py-3">
           {state.routes.map((route, index) => {
             const { options } = descriptors[route.key];
             const label =
               options.tabBarLabel !== undefined
                 ? options.tabBarLabel
                 : options.title !== undefined
-                ? options.title
-                : route.name;
+                  ? options.title
+                  : route.name;
 
             const isFocused = state.index === index;
 
@@ -202,7 +211,8 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
             );
           })}
         </View>
-    </View>
+      </View>
+    </>
   );
 }
 

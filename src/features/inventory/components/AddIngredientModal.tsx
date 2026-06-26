@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   View, 
   Text, 
@@ -20,6 +20,14 @@ import {
   useLazyGetUploadSignatureQuery,
   IngredientData 
 } from '../inventoryApi';
+import {
+  IngredientFormSnapshot,
+  resolveUnitConfig,
+  snapshotFromIngredient,
+  UnitCategory,
+} from '../ingredientFormUtils';
+import { parseDecimalInput } from '../../dashboard/dashboardUtils';
+import { getInventoryQtyPlaceholder, parseInventoryQtyInput } from '../../inventory/inventoryUtils';
 import { useThemeColors } from '../../../hooks/useThemeColors';
 import { compressImageForUpload } from '../../../utils/compressImage';
 import { useAppDispatch } from '../../../store/store';
@@ -30,8 +38,6 @@ interface AddIngredientModalProps {
   onClose: () => void;
   ingredient?: IngredientData | null;
 }
-
-type UnitCategory = 'weight' | 'volume' | 'count';
 
 const CATEGORIES = [
   { name: 'Meat', icon: '🍗' },
@@ -64,44 +70,34 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
 
   // Image upload state
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [initialImage, setInitialImage] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isCompressing, setIsCompressing] = useState(false);
+  const initialSnapshotRef = useRef<IngredientFormSnapshot | null>(null);
 
   // Pre-populate form values when editing
   useEffect(() => {
     if (ingredient) {
-      setName(ingredient.name);
-      setCategory(ingredient.category || 'Pantry');
-      
-      const unitRelation = ingredient.unitRelation || { baseUnit: 'g', conversionRatio: 1000, purchaseUnit: 'kg' };
-      const purchaseUnit = unitRelation.purchaseUnit;
-      let cat: UnitCategory = 'weight';
-      if (purchaseUnit === 'liter') {
-        cat = 'volume';
-      } else if (purchaseUnit === 'pack') {
-        cat = 'count';
-      }
-      setUnitCategory(cat);
+      const snapshot = snapshotFromIngredient(ingredient);
+      initialSnapshotRef.current = snapshot;
 
-      const ratio = unitRelation.conversionRatio;
-      setMinThresholdInput((ingredient.minThreshold / ratio).toString());
-      setInitialQtyInput((ingredient.currentStock / ratio).toString());
-
-      const latestBatch = ingredient.batches?.[ingredient.batches.length - 1];
-      if (latestBatch?.costPerBaseUnit) {
-        setPurchaseCostInput((latestBatch.costPerBaseUnit * ratio).toString());
-      } else {
-        setPurchaseCostInput('');
-      }
-
-      setSelectedImage(ingredient.image);
+      setName(snapshot.name);
+      setCategory(snapshot.category);
+      setUnitCategory(snapshot.unitCategory);
+      setMinThresholdInput(snapshot.minThresholdInput);
+      setInitialQtyInput(snapshot.qtyInput);
+      setPurchaseCostInput(snapshot.purchaseCostInput);
+      setSelectedImage(snapshot.image);
+      setInitialImage(snapshot.image);
     } else {
+      initialSnapshotRef.current = null;
       setName('');
       setCategory('Pantry');
       setUnitCategory('weight');
       setMinThresholdInput('');
       setInitialQtyInput('');
       setSelectedImage(null);
+      setInitialImage(null);
       setPurchaseCostInput('');
     }
     setFormError('');
@@ -141,47 +137,62 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
   };
 
   const handleCreateOrUpdate = async () => {
-    if (!name || !minThresholdInput || !initialQtyInput || (!ingredient && !purchaseCostInput)) {
+    if (!ingredient && (!name || !minThresholdInput || !initialQtyInput || !purchaseCostInput)) {
       setFormError('All fields are required.');
+      return;
+    }
+
+    if (ingredient && !name.trim()) {
+      setFormError('Ingredient name is required.');
       return;
     }
 
     setFormError('');
 
-    // Configure units based on selection
-    let purchaseUnit: 'kg' | 'liter' | 'pack' = 'kg';
-    let baseUnit: 'g' | 'ml' | 'pcs' = 'g';
-    let ratio = 1000;
+    const existingUnits = ingredient?.unitRelation;
+    const { purchaseUnit, baseUnit, conversionRatio: ratio } = resolveUnitConfig(
+      unitCategory,
+      existingUnits
+    );
+    const unitRelation = { purchaseUnit, baseUnit, conversionRatio: ratio };
 
-    if (unitCategory === 'volume') {
-      purchaseUnit = 'liter';
-      baseUnit = 'ml';
-      ratio = 1000;
-    } else if (unitCategory === 'count') {
-      purchaseUnit = 'pack';
-      baseUnit = 'pcs';
-      ratio = 1; 
+    const baseThreshold = parseInventoryQtyInput(minThresholdInput, unitRelation);
+    const baseQuantity = parseInventoryQtyInput(initialQtyInput, unitRelation);
+    const rawCost = parseDecimalInput(purchaseCostInput);
+
+    if (ingredient) {
+      if (purchaseCostInput.trim() && isNaN(rawCost)) {
+        setFormError('Purchase price must be a valid number.');
+        return;
+      }
+      if (minThresholdInput.trim() && !Number.isFinite(baseThreshold)) {
+        setFormError('Alert threshold must be a valid number (e.g. 2 kg or 500 g).');
+        return;
+      }
+      if (initialQtyInput.trim() && !Number.isFinite(baseQuantity)) {
+        setFormError('Stock quantity must be a valid number (e.g. 5 kg or 500 g).');
+        return;
+      }
+    } else {
+      if (!name || !minThresholdInput || !initialQtyInput || !purchaseCostInput) {
+        setFormError('All fields are required.');
+        return;
+      }
+      if (!Number.isFinite(baseThreshold) || !Number.isFinite(baseQuantity) || isNaN(rawCost)) {
+        setFormError('Numeric fields must contain valid numbers.');
+        return;
+      }
     }
 
-    const rawThreshold = Number(minThresholdInput);
-    const rawQty = Number(initialQtyInput);
-    const rawCost = Number(purchaseCostInput);
+    const hasNewLocalImage = Boolean(selectedImage && selectedImage.startsWith('file:'));
+    let uploadedImageUrl: string | undefined;
 
-    if (isNaN(rawThreshold) || isNaN(rawQty) || (!ingredient && isNaN(rawCost))) {
-      setFormError('Numeric fields must contain valid numbers.');
-      return;
+    if (hasNewLocalImage) {
+      setIsUploading(true);
     }
-
-    // Convert values to base units
-    const baseThreshold = rawThreshold * ratio;
-    const baseQuantity = rawQty * ratio;
-
-    setIsUploading(true);
-    let uploadedImageUrl = undefined;
 
     try {
-      // 1. Upload photo directly to Cloudinary if selected (and changed to a local URI)
-      if (selectedImage && selectedImage.startsWith('file:')) {
+      if (hasNewLocalImage && selectedImage) {
         const sigResponse = await triggerGetSignature().unwrap();
         if (sigResponse.success) {
           const { signature, timestamp, apiKey, uploadUrl, folder } = sigResponse;
@@ -201,7 +212,7 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
             method: 'POST',
             body: formData,
             headers: {
-              'Accept': 'application/json',
+              Accept: 'application/json',
               'Content-Type': 'multipart/form-data',
             },
           });
@@ -221,22 +232,73 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
         }
       }
 
-      // 2. Perform Create or Update API Request
+      const buildImageField = (): string | null | undefined => {
+        if (uploadedImageUrl !== undefined) return uploadedImageUrl;
+        if (selectedImage !== initialImage) {
+          return selectedImage;
+        }
+        return undefined;
+      };
+
+      const imageField = buildImageField();
+
       if (ingredient) {
-        // Edit mode
+        const initial = initialSnapshotRef.current;
+        if (!initial) {
+          setFormError('Could not load ingredient details.');
+          return;
+        }
+
+        const body: Parameters<typeof updateIngredient>[0]['body'] = {};
+        const trimmedName = name.trim();
+
+        if (trimmedName !== initial.name) {
+          body.name = trimmedName;
+        }
+        if (category !== initial.category) {
+          body.category = category;
+        }
+
+        const unitsChanged =
+          unitCategory !== initial.unitCategory ||
+          purchaseUnit !== initial.purchaseUnit ||
+          baseUnit !== initial.baseUnit ||
+          ratio !== initial.conversionRatio;
+
+        if (unitsChanged) {
+          body.purchaseUnit = purchaseUnit;
+          body.baseUnit = baseUnit;
+          body.conversionRatio = ratio;
+        }
+
+        if (minThresholdInput.trim() !== initial.minThresholdInput) {
+          body.minThreshold = baseThreshold;
+        }
+
+        if (initialQtyInput.trim() !== initial.qtyInput) {
+          body.currentStock = baseQuantity;
+        }
+
+        const nextPrice = purchaseCostInput.trim() ? rawCost : 0;
+        const initialPrice = initial.purchaseCostInput.trim()
+          ? parseDecimalInput(initial.purchaseCostInput)
+          : 0;
+        if (purchaseCostInput.trim() !== initial.purchaseCostInput && nextPrice !== initialPrice) {
+          body.purchasePrice = nextPrice;
+        }
+
+        if (imageField !== undefined) {
+          body.image = imageField;
+        }
+
+        if (Object.keys(body).length === 0) {
+          setFormError('No changes to save.');
+          return;
+        }
+
         const result = await updateIngredient({
           id: ingredient._id,
-          body: {
-            name: name.trim(),
-            category,
-            minThreshold: baseThreshold,
-            purchaseUnit,
-            baseUnit,
-            conversionRatio: ratio,
-            currentStock: baseQuantity,
-            image: uploadedImageUrl !== undefined ? uploadedImageUrl : (selectedImage || undefined),
-            purchaseUnitPrice: purchaseCostInput ? Number(purchaseCostInput) : 0,
-          }
+          body,
         }).unwrap();
 
         if (result.success) {
@@ -252,8 +314,8 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
           purchaseUnit,
           baseUnit,
           conversionRatio: ratio,
-          initialQuantity: rawQty,
-          purchaseCost: rawCost,
+          initialQuantity: baseQuantity / ratio,
+          purchasePrice: rawCost,
           image: uploadedImageUrl
         }).unwrap();
 
@@ -278,6 +340,7 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
   const handleClose = () => {
     setFormError('');
     setSelectedImage(null);
+    setInitialImage(null);
     onClose();
   };
 
@@ -285,15 +348,16 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
   const getUnitLabels = () => {
     switch (unitCategory) {
       case 'weight':
-        return { label: 'kg', sub: 'grams (g)' };
+        return { priceLabel: 'kg', sub: 'grams (g)' };
       case 'volume':
-        return { label: 'liters', sub: 'milliliters (ml)' };
+        return { priceLabel: 'liter (L)', sub: 'milliliters (ml)' };
       case 'count':
-        return { label: 'pcs', sub: 'pieces (pcs)' };
+        return { priceLabel: 'pack', sub: 'pieces (pcs) in each pack' };
     }
   };
 
-  const { label } = getUnitLabels();
+  const { priceLabel } = getUnitLabels();
+  const qtyPlaceholder = getInventoryQtyPlaceholder(unitCategory);
 
   return (
     <Modal
@@ -473,27 +537,27 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
               </View>
 
               <Input
-                label={ingredient ? `Current Stock Quantity (${label})` : `Initial Stock Quantity (${label})`}
-                placeholder={`e.g. 10`}
+                label={ingredient ? `Current Stock Quantity` : `Initial Stock Quantity`}
+                placeholder={qtyPlaceholder}
                 value={initialQtyInput}
                 onChangeText={setInitialQtyInput}
-                keyboardType="numeric"
+                keyboardType="decimal-pad"
               />
 
               <Input
-                label={`Alert Threshold (${label})`}
-                placeholder={`e.g. 2`}
+                label={`Alert Threshold`}
+                placeholder={qtyPlaceholder}
                 value={minThresholdInput}
                 onChangeText={setMinThresholdInput}
-                keyboardType="numeric"
+                keyboardType="decimal-pad"
               />
 
               <Input
-                label={ingredient ? `Purchase Price (₹ per ${label})` : 'Total Purchase Cost (₹)'}
-                placeholder={ingredient ? `e.g. 120` : 'e.g. 1200'}
+                label={ingredient ? `Purchase Price (₹ per ${priceLabel})` : `Purchase Price (₹ per ${priceLabel})`}
+                placeholder={ingredient ? `e.g. 120.50` : 'e.g. 1200.75'}
                 value={purchaseCostInput}
                 onChangeText={setPurchaseCostInput}
-                keyboardType="numeric"
+                keyboardType="decimal-pad"
               />
             </ScrollView>
 

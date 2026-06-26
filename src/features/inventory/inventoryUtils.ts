@@ -1,9 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS } from '../../config/constants';
-import { IngredientData, StockLevel } from './inventoryApi';
+import { IngredientData, StockLevel, UnitRelation } from './inventoryApi';
 
 export type InventoryLayout = 'list' | 'grid';
 export type SortOption = 'name-asc' | 'name-desc' | 'stock-asc' | 'stock-desc';
+
+export function isStockLevelSortOption(sortBy: SortOption): boolean {
+  return sortBy === 'stock-asc' || sortBy === 'stock-desc';
+}
 
 export const INVENTORY_PREFS_KEY = 'inventory-view-preferences';
 
@@ -51,43 +55,17 @@ export function getGridCardWidth(screenWidth: number): number {
 }
 
 export function getGridImageSize(cardWidth: number): number {
-  return cardWidth - 8;
+  return cardWidth - 2;
 }
 
-/** Approximate grid cell height for hit-testing while drag-selecting. */
+export const GRID_NAME_BLOCK_HEIGHT = 50;
+export const GRID_STEPPER_BLOCK_HEIGHT = 50;
+
+/** Fixed grid cell height — every card in a row matches this. */
 export function getGridCardHeight(cardWidth: number, selectionMode: boolean): number {
   const imageSize = getGridImageSize(cardWidth);
-  const nameBlock = 30;
-  const stepperBlock = selectionMode ? 0 : 58;
-  return 8 + imageSize + 4 + nameBlock + stepperBlock;
-}
-
-export function pageYToGridIndex(
-  pageX: number,
-  pageY: number,
-  scrollY: number,
-  listPageY: number,
-  headerHeight: number,
-  cardWidth: number,
-  cardHeight: number,
-  columns: number,
-  horizontalPadding: number,
-  gap: number,
-  itemCount: number
-): number {
-  if (itemCount <= 0) return 0;
-
-  const contentY = pageY - listPageY + scrollY - headerHeight;
-  const rowHeight = cardHeight + gap;
-  const row = Math.max(0, Math.floor(contentY / rowHeight));
-
-  const localX = pageX - horizontalPadding;
-  const colWidth = cardWidth + gap;
-  let col = Math.floor(localX / colWidth);
-  col = Math.max(0, Math.min(columns - 1, col));
-
-  const index = row * columns + col;
-  return Math.min(itemCount - 1, Math.max(0, index));
+  const stepperBlock = selectionMode ? 8 : GRID_STEPPER_BLOCK_HEIGHT;
+  return 4 + imageSize + 6 + GRID_NAME_BLOCK_HEIGHT + stepperBlock;
 }
 
 export function formatStock(stock: number, unit: string) {
@@ -112,26 +90,180 @@ export function formatStockCompact(stock: number, unit: string) {
   return `${stock}pcs`;
 }
 
+export function normalizeUnitRelation(relation?: Partial<UnitRelation> | null): UnitRelation {
+  const baseUnit = relation?.baseUnit ?? 'g';
+  const ratio = relation?.conversionRatio && relation.conversionRatio > 0 ? relation.conversionRatio : 1;
+  const rawPurchaseUnit = String(relation?.purchaseUnit ?? '').toLowerCase();
+
+  let purchaseUnit: UnitRelation['purchaseUnit'];
+  if (rawPurchaseUnit === 'liter' || rawPurchaseUnit === 'l' || rawPurchaseUnit === 'liters') {
+    purchaseUnit = 'liter';
+  } else if (
+    rawPurchaseUnit === 'pack' ||
+    rawPurchaseUnit === 'pcs' ||
+    rawPurchaseUnit === 'pc' ||
+    rawPurchaseUnit === 'piece' ||
+    rawPurchaseUnit === 'pieces'
+  ) {
+    purchaseUnit = 'pack';
+  } else if (rawPurchaseUnit === 'kg') {
+    purchaseUnit = 'kg';
+  } else if (baseUnit === 'ml') {
+    purchaseUnit = 'liter';
+  } else if (baseUnit === 'pcs') {
+    purchaseUnit = 'pack';
+  } else {
+    purchaseUnit = 'kg';
+  }
+
+  let normalizedBase: UnitRelation['baseUnit'] = baseUnit;
+  if (purchaseUnit === 'liter' && baseUnit !== 'ml') normalizedBase = 'ml';
+  if (purchaseUnit === 'kg' && baseUnit !== 'g') normalizedBase = 'g';
+  if (purchaseUnit === 'pack' && baseUnit !== 'pcs' && baseUnit !== 'g') normalizedBase = 'pcs';
+
+  let conversionRatio = ratio;
+  if (purchaseUnit === 'kg' || purchaseUnit === 'liter') {
+    conversionRatio = ratio >= 1 ? ratio : 1000;
+  } else if (conversionRatio < 1) {
+    conversionRatio = 1;
+  }
+
+  return {
+    purchaseUnit,
+    baseUnit: normalizedBase,
+    conversionRatio,
+  };
+}
+
+/** Read stored price from any supported field on the ingredient record. */
+export function resolveIngredientPrice(ingredient: IngredientData): number {
+  const record = ingredient as IngredientData & { purchaseCost?: number | string };
+  const candidates = [ingredient.purchasePrice, record.purchaseCost];
+
+  for (const raw of candidates) {
+    const price = typeof raw === 'string' ? Number(raw) : raw;
+    if (typeof price === 'number' && Number.isFinite(price) && price > 0) {
+      return price;
+    }
+  }
+
+  return 0;
+}
+
 export function getPurchaseUnitPrice(ingredient: IngredientData): number | null {
-  const batches = ingredient.batches || [];
-  if (batches.length === 0) return null;
+  const price = resolveIngredientPrice(ingredient);
+  return price > 0 ? price : null;
+}
 
-  const latestBatch = batches[batches.length - 1];
-  if (!latestBatch.costPerBaseUnit) return null;
+/** Human label for purchase price — kg, L, pc, or pack. */
+export function getPurchasePriceUnitLabel(ingredient: IngredientData): string {
+  const display = getDisplayPurchasePrice(ingredient);
+  return display?.unitLabel ?? 'kg';
+}
 
-  const ratio = ingredient.unitRelation?.conversionRatio ?? 1;
-  return latestBatch.costPerBaseUnit * ratio;
+/** Price shown in UI — always per kg, per liter, or per pc (never per gram/ml). */
+export function getDisplayPurchasePrice(
+  ingredient: IngredientData
+): { amount: number; unitLabel: string } | null {
+  const stored = getPurchaseUnitPrice(ingredient);
+  if (stored === null) return null;
+
+  const unitRelation = normalizeUnitRelation(ingredient.unitRelation);
+
+  if (unitRelation.purchaseUnit === 'liter') {
+    let amount = stored;
+    // Legacy data sometimes stored ₹/ml instead of ₹/liter
+    if (amount > 0 && amount < 1 && unitRelation.conversionRatio >= 100) {
+      amount = amount * unitRelation.conversionRatio;
+    }
+    return { amount, unitLabel: 'liter' };
+  }
+
+  if (unitRelation.purchaseUnit === 'kg') {
+    let amount = stored;
+    // Legacy data sometimes stored ₹/g instead of ₹/kg
+    if (amount > 0 && amount < 1 && unitRelation.conversionRatio >= 100) {
+      amount = amount * unitRelation.conversionRatio;
+    }
+    return { amount, unitLabel: 'kg' };
+  }
+
+  if (unitRelation.purchaseUnit === 'pack' && unitRelation.baseUnit === 'pcs') {
+    const ratio = unitRelation.conversionRatio > 0 ? unitRelation.conversionRatio : 1;
+    return { amount: stored / ratio, unitLabel: 'pc' };
+  }
+
+  return { amount: stored, unitLabel: 'pack' };
+}
+
+export function formatPurchasePriceLabel(unitLabel: string): string {
+  if (unitLabel === 'liter') return 'per liter';
+  if (unitLabel === 'kg') return 'per kg';
+  if (unitLabel === 'pc') return 'per pc';
+  return 'per pack';
+}
+
+export function formatPriceAmount(amount: number): string {
+  const rounded = Math.round(amount * 100) / 100;
+  if (Number.isInteger(rounded)) return String(rounded);
+  return rounded.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
+}
+
+export function normalizeIngredientRecord(ingredient: IngredientData): IngredientData {
+  return {
+    ...ingredient,
+    unitRelation: normalizeUnitRelation(ingredient.unitRelation),
+    purchasePrice: resolveIngredientPrice(ingredient),
+  };
+}
+
+export function computeStockLevel(currentStock: number, minThreshold: number): StockLevel {
+  if (currentStock <= minThreshold) return 'low';
+  if (minThreshold <= 0) return currentStock > 0 ? 'high' : 'low';
+  if (currentStock <= minThreshold * 2) return 'average';
+  return 'high';
+}
+
+const STOCK_LEVEL_RANK: Record<StockLevel, number> = {
+  low: 0,
+  average: 1,
+  high: 2,
+};
+
+function getStockLevelRank(ingredient: IngredientData): number {
+  const level = computeStockLevel(ingredient.currentStock, ingredient.minThreshold);
+  return STOCK_LEVEL_RANK[level];
+}
+
+export function sortIngredientsByStockLevel(
+  ingredients: IngredientData[],
+  direction: 'asc' | 'desc'
+): IngredientData[] {
+  const dir = direction === 'asc' ? 1 : -1;
+  return [...ingredients].sort((a, b) => {
+    const rankDiff = getStockLevelRank(a) - getStockLevelRank(b);
+    if (rankDiff !== 0) return rankDiff * dir;
+    return (a.currentStock - b.currentStock) * dir;
+  });
 }
 
 export function formatPurchasePrice(ingredient: IngredientData): string | null {
-  const price = getPurchaseUnitPrice(ingredient);
-  if (price === null || price <= 0) return null;
+  const display = getDisplayPurchasePrice(ingredient);
+  if (!display) return null;
 
-  const purchaseUnit = ingredient.unitRelation?.purchaseUnit ?? 'kg';
-  const unitLabel = purchaseUnit === 'liter' ? 'L' : purchaseUnit === 'pack' ? 'pcs' : 'kg';
-  const formatted = Number.isInteger(price) ? price.toString() : price.toFixed(2);
+  return `₹${formatPriceAmount(display.amount)} ${formatPurchasePriceLabel(display.unitLabel)}`;
+}
 
-  return `₹${formatted}/${unitLabel}`;
+/** Always returns a label for UI — shows hint when price is missing. */
+export function formatPurchasePriceDisplay(ingredient: IngredientData): {
+  text: string;
+  hasPrice: boolean;
+} {
+  const formatted = formatPurchasePrice(ingredient);
+  if (formatted) {
+    return { text: formatted, hasPrice: true };
+  }
+  return { text: 'Set price', hasPrice: false };
 }
 
 export function getQuickStepAmount(baseUnit: string, conversionRatio: number): number {
@@ -144,7 +276,67 @@ export function getQuickStepAmount(baseUnit: string, conversionRatio: number): n
 export function getPurchaseUnitLabel(baseUnit: string): string {
   if (baseUnit === 'g') return 'kg';
   if (baseUnit === 'ml') return 'L';
+  if (baseUnit === 'pcs') return 'pcs';
+  return baseUnit;
+}
+
+/** Hint for recipe quantity field — user can type g or kg, ml or L, etc. */
+export function getRecipeQtyHint(ingredient: IngredientData): string {
+  const unitRelation = normalizeUnitRelation(ingredient.unitRelation);
+  if (unitRelation.baseUnit === 'g') return 'g or kg';
+  if (unitRelation.baseUnit === 'ml') return 'ml or L';
   return 'pcs';
+}
+
+export function getInventoryQtyPlaceholder(unitCategory: 'weight' | 'volume' | 'count'): string {
+  if (unitCategory === 'weight') return 'e.g. 5 kg or 500 g';
+  if (unitCategory === 'volume') return 'e.g. 2 L or 500 ml';
+  return 'e.g. 30';
+}
+
+function parseQtyMatch(input: string): { value: number; unit: string } | null {
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+
+  const match = trimmed.match(/^([0-9.]+)\s*([a-zA-Z]*)$/);
+  if (!match) {
+    const value = parseFloat(trimmed);
+    return Number.isFinite(value) ? { value, unit: '' } : null;
+  }
+
+  const value = parseFloat(match[1]);
+  if (!Number.isFinite(value)) return null;
+  return { value, unit: match[2].toLowerCase() };
+}
+
+/** Stock/threshold on add/edit ingredient — default unit is kg, L, or pcs. */
+export function parseInventoryQtyInput(input: string, unitRelation: UnitRelation): number {
+  const parsed = parseQtyMatch(input);
+  if (!parsed || parsed.value < 0) return NaN;
+
+  const ur = normalizeUnitRelation(unitRelation);
+  const { value, unit } = parsed;
+
+  if (ur.purchaseUnit === 'kg') {
+    if (unit === 'g' || unit === 'gm' || unit === 'gram' || unit === 'grams') return value;
+    if (!unit || unit === 'kg' || unit === 'kilo' || unit === 'kilogram' || unit === 'kilograms') {
+      return value * ur.conversionRatio;
+    }
+    return value * ur.conversionRatio;
+  }
+
+  if (ur.purchaseUnit === 'liter') {
+    if (unit === 'ml' || unit === 'milliliter' || unit === 'milliliters') return value;
+    if (!unit || unit === 'l' || unit === 'liter' || unit === 'liters') {
+      return value * ur.conversionRatio;
+    }
+    return value * ur.conversionRatio;
+  }
+
+  if (unit === 'pack' || unit === 'packs') return value * ur.conversionRatio;
+  if (!unit || unit === 'pcs' || unit === 'pc' || unit === 'piece' || unit === 'pieces') return value;
+  if (ur.conversionRatio > 1) return value * ur.conversionRatio;
+  return value;
 }
 
 export function parseStepAmount(input: string, baseUnit: string, conversionRatio: number): number {
@@ -173,6 +365,14 @@ export function parseStepAmount(input: string, baseUnit: string, conversionRatio
 
   const unit = match[2].toLowerCase();
 
+  // Bare number in the stepper — matches the purchase-unit label (kg, L, pcs)
+  if (!unit) {
+    if (baseUnit === 'g' || baseUnit === 'ml') {
+      return val * conversionRatio;
+    }
+    return val;
+  }
+
   if (unit === 'g' || unit === 'gm' || unit === 'gram' || unit === 'grams') {
     return val;
   }
@@ -188,11 +388,14 @@ export function parseStepAmount(input: string, baseUnit: string, conversionRatio
   if (unit === 'pcs' || unit === 'pc' || unit === 'piece' || unit === 'pieces') {
     return val;
   }
+  if (unit === 'pack' || unit === 'packs') {
+    return val * conversionRatio;
+  }
 
   if (baseUnit === 'g' || baseUnit === 'ml') {
     return val * conversionRatio;
   }
-  return val * conversionRatio;
+  return val;
 }
 
 export function getCategoryDetails(catName?: string, itemName: string = '') {
@@ -262,38 +465,11 @@ export function getCategoryDetails(catName?: string, itemName: string = '') {
   return { type: 'Pantry', icon: '🥫', bgClass: 'bg-emerald-500/10', textClass: 'text-emerald-500 dark:text-emerald-400' };
 }
 
-export function filterAndSortIngredients(
-  ingredients: IngredientData[],
-  searchQuery: string,
-  sortBy: SortOption
-): IngredientData[] {
-  const filtered = ingredients.filter((item) =>
-    item.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const sorted = [...filtered].sort((a, b) => {
-    switch (sortBy) {
-      case 'name-asc':
-        return a.name.localeCompare(b.name);
-      case 'name-desc':
-        return b.name.localeCompare(a.name);
-      case 'stock-asc':
-        return a.currentStock - b.currentStock;
-      case 'stock-desc':
-        return b.currentStock - a.currentStock;
-      default:
-        return 0;
-    }
-  });
-
-  return sorted;
-}
-
 export const SORT_OPTIONS: { value: SortOption; label: string; icon: string }[] = [
   { value: 'name-asc', label: 'Name A→Z', icon: 'text-outline' },
   { value: 'name-desc', label: 'Name Z→A', icon: 'text-outline' },
-  { value: 'stock-asc', label: 'Stock Low→High', icon: 'trending-up-outline' },
-  { value: 'stock-desc', label: 'Stock High→Low', icon: 'trending-down-outline' },
+  { value: 'stock-asc', label: 'Low → Avg → High', icon: 'trending-up-outline' },
+  { value: 'stock-desc', label: 'High → Avg → Low', icon: 'trending-down-outline' },
 ];
 
 export interface StockLevelTheme {

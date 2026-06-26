@@ -1,17 +1,17 @@
-import React, { useState } from 'react';
-import { View, Text, Image, TouchableOpacity, ActivityIndicator, TextInput } from 'react-native';
+import React, { useMemo } from 'react';
+import { View, Text, Image, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors } from '../../../hooks/useThemeColors';
 import { IngredientData } from '../inventoryApi';
 import {
   getCategoryDetails,
   formatStock,
-  formatPurchasePrice,
-  getPurchaseUnitLabel,
-  parseStepAmount,
+  formatPurchasePriceDisplay,
   getStockLevelTheme,
   getStockLevelBorderStyle,
+  computeStockLevel,
 } from '../inventoryUtils';
+import StockStepper from './StockStepper';
 
 interface IngredientCardProps {
   ingredient: IngredientData;
@@ -30,41 +30,39 @@ function IngredientCard({
   onStepAdjust,
   onDelete,
 }: IngredientCardProps) {
-  const { primary, danger, success, muted, text, isDark } = useThemeColors();
+  const { primary, danger, muted, isDark } = useThemeColors();
   const {
     name,
     currentStock,
+    minThreshold,
     unitRelation = { baseUnit: 'g', conversionRatio: 1000, purchaseUnit: 'kg' },
     image,
   } = ingredient;
 
-  const [stepInput, setStepInput] = useState('1');
+  const baseUnit = unitRelation.baseUnit;
+  const displayStock = Math.max(0, currentStock);
+  const stockLevel = useMemo(
+    () => computeStockLevel(displayStock, minThreshold),
+    [displayStock, minThreshold]
+  );
 
   const { type, icon, bgClass, textClass } = getCategoryDetails(ingredient.category, name);
-  const stockTheme = getStockLevelTheme(ingredient.stockLevel, isDark);
-  const stockBorder = getStockLevelBorderStyle(ingredient.stockLevel, isDark, 4);
-  const baseUnit = unitRelation.baseUnit;
-  const unitLabel = getPurchaseUnitLabel(baseUnit);
-
-  const formattedStock = formatStock(currentStock, baseUnit);
-  const formattedPrice = formatPurchasePrice(ingredient);
-
-  const handleStepAdjust = (type: 'add' | 'deduct') => {
-    const amount = parseStepAmount(stepInput, baseUnit, unitRelation.conversionRatio);
-    onStepAdjust(type, amount);
-  };
+  const stockTheme = getStockLevelTheme(stockLevel, isDark);
+  const stockBorder = getStockLevelBorderStyle(stockLevel, isDark, 4);
+  const formattedStock = formatStock(displayStock, baseUnit);
+  const formattedPrice = formatPurchasePriceDisplay(ingredient);
+  const showStepLoading = isUpdating;
 
   return (
     <View
       className="overflow-hidden shadow-sm p-3 rounded-3xl border border-border/30 dark:border-border-dark/30 bg-card dark:bg-card-dark w-full"
       style={stockBorder ?? undefined}
     >
-      {/* Top row: Left (image + name + category) | Middle (stock + price) | Right (edit + delete) */}
       <View className="flex-row items-center mb-3">
-        {/* Left */}
         <View className="flex-row items-center flex-1 mr-2">
           {image ? (
             <Image
+              key={ingredient._id}
               source={{ uri: image }}
               className="w-11 h-11 rounded-xl mr-2.5 border border-border/10"
               resizeMode="cover"
@@ -90,7 +88,6 @@ function IngredientCard({
           </View>
         </View>
 
-        {/* Middle */}
         <View className="items-center mx-2" style={{ minWidth: 80 }}>
           <TouchableOpacity
             onPress={onAdjust}
@@ -117,14 +114,15 @@ function IngredientCard({
             </View>
           </TouchableOpacity>
 
-          {formattedPrice ? (
-            <Text className="text-[10px] font-black text-primary mt-1.5 text-center">
-              {formattedPrice}
-            </Text>
-          ) : null}
+          <Text
+            className={`text-[10px] font-black mt-1.5 text-center ${
+              formattedPrice.hasPrice ? 'text-primary' : 'text-muted dark:text-muted-dark'
+            }`}
+          >
+            {formattedPrice.text}
+          </Text>
         </View>
 
-        {/* Right */}
         <View className="items-center justify-center" style={{ gap: 6 }}>
           <TouchableOpacity
             onPress={onEdit}
@@ -146,59 +144,25 @@ function IngredientCard({
         </View>
       </View>
 
-      {/* Bottom: +/- with editable step amount in the middle */}
-      <View className="flex-row items-center bg-border/5 dark:bg-border-dark/5 border border-border/50 dark:border-border-dark/50 rounded-xl p-1">
-        <TouchableOpacity
-          onPress={() => handleStepAdjust('deduct')}
-          disabled={isUpdating}
-          activeOpacity={0.6}
-          className="w-9 h-9 rounded-lg bg-red-500/10 justify-center items-center active:bg-red-500/20 disabled:opacity-50"
-        >
-          {isUpdating ? (
-            <ActivityIndicator size="small" color={danger} />
-          ) : (
-            <Ionicons name="remove-outline" size={18} color={danger} />
-          )}
-        </TouchableOpacity>
-
-        <View className="flex-1 flex-row items-center justify-center px-2" style={{ gap: 4 }}>
-          <TextInput
-            value={stepInput}
-            onChangeText={setStepInput}
-            keyboardType="decimal-pad"
-            editable={!isUpdating}
-            selectTextOnFocus
-            style={{
-              minWidth: 36,
-              maxWidth: 56,
-              height: 32,
-              textAlign: 'center',
-              fontSize: 14,
-              fontWeight: '900',
-              color: text,
-              backgroundColor: 'transparent',
-              padding: 0,
-              margin: 0,
-            }}
-          />
-          <Text className="text-xs font-bold text-muted dark:text-muted-dark">{unitLabel}</Text>
-        </View>
-
-        <TouchableOpacity
-          onPress={() => handleStepAdjust('add')}
-          disabled={isUpdating}
-          activeOpacity={0.6}
-          className="w-9 h-9 rounded-lg bg-emerald-500/10 justify-center items-center active:bg-emerald-500/20 disabled:opacity-50"
-        >
-          {isUpdating ? (
-            <ActivityIndicator size="small" color={success} />
-          ) : (
-            <Ionicons name="add-outline" size={18} color={success} />
-          )}
-        </TouchableOpacity>
-      </View>
+      <StockStepper
+        baseUnit={baseUnit}
+        conversionRatio={unitRelation.conversionRatio}
+        isUpdating={showStepLoading}
+        onStepAdjust={onStepAdjust}
+      />
     </View>
   );
 }
 
-export default React.memo(IngredientCard);
+function propsAreEqual(prev: IngredientCardProps, next: IngredientCardProps) {
+  return (
+    prev.ingredient._id === next.ingredient._id &&
+    prev.ingredient.currentStock === next.ingredient.currentStock &&
+    prev.ingredient.minThreshold === next.ingredient.minThreshold &&
+    prev.ingredient.purchasePrice === next.ingredient.purchasePrice &&
+    prev.ingredient.image === next.ingredient.image &&
+    prev.isUpdating === next.isUpdating
+  );
+}
+
+export default React.memo(IngredientCard, propsAreEqual);
