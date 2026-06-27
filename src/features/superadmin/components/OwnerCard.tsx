@@ -51,11 +51,11 @@ export default function OwnerCard({
                 }`}
               >
                 <Text
-                  className={`text-[8px] font-semibold uppercase ${
+                  className={`text-[8px] font-semibold ${
                     ownerStatus === 'active' ? 'text-emerald-500' : 'text-red-500'
                   }`}
                 >
-                  {ownerStatus}
+                  {ownerStatus === 'active' ? 'Active' : 'Locked'}
                 </Text>
               </View>
             ) : null}
@@ -86,7 +86,7 @@ export default function OwnerCard({
             style={{ marginRight: 8 }}
           />
           <Text
-            className={`text-[10px] font-semibold tracking-normalr ${
+            className={`text-[10px] font-semibold tracking-normal ${
               tenant.status === 'active' ? 'text-emerald-500' : 'text-red-500'
             }`}
           >

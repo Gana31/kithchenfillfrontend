@@ -102,7 +102,7 @@ export default function CounterScreen({ navigation }: any) {
         }}
       >
         <Card className="mb-6 p-5">
-          <Text className="text-xs text-muted dark:text-muted-dark font-bold tracking-normalr">
+          <Text className="text-xs text-muted dark:text-muted-dark font-bold tracking-normal">
             Today&apos;s counter sales
           </Text>
           <Text className="text-3xl font-semibold text-text dark:text-text-dark mt-1">{formatInr(todaysTotal)}</Text>

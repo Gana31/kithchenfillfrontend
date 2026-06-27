@@ -15,6 +15,7 @@ import ConfirmModal from '../../components/ConfirmModal';
 import ScreenContainer from '../../components/ScreenContainer';
 import * as Updates from 'expo-updates';
 import { checkForOtaUpdate, downloadAndApplyOtaUpdate } from '../../utils/otaUpdates';
+import ChangePasswordCard from './ChangePasswordCard';
 
 export default function ProfileScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
@@ -149,7 +150,7 @@ export default function ProfileScreen({ navigation }: any) {
           className="px-3.5 py-2 rounded-xl bg-red-500/10 border border-red-500/20 flex-row items-center mr-6 shadow-sm"
         >
           <Ionicons name="log-out-outline" size={16} color={danger} style={{ marginRight: 6 }} />
-          <Text className="text-xs font-semibold text-red-500 tracking-normalr">
+          <Text className="text-xs font-semibold text-red-500 tracking-normal">
             Log Out
           </Text>
         </TouchableOpacity>
@@ -248,11 +249,32 @@ export default function ProfileScreen({ navigation }: any) {
         </Card>
 
         <Text className="text-lg font-semibold text-text dark:text-text-dark mb-4">
+          Security
+        </Text>
+
+        <ChangePasswordCard
+          email={user?.email || email}
+          onSuccess={(message) => {
+            dispatch(
+              showToast({
+                title: 'Password updated',
+                message: `${message} Please sign in again.`,
+                type: 'success',
+              })
+            );
+            setTimeout(() => dispatch(logoutUser()), 1500);
+          }}
+          onError={(message) =>
+            dispatch(showToast({ title: 'Password', message, type: 'error' }))
+          }
+        />
+
+        <Text className="text-lg font-semibold text-text dark:text-text-dark mb-4">
           Appearance
         </Text>
 
         <Card className="mb-6 p-5">
-          <Text className="text-xs text-muted dark:text-muted-dark font-bold tracking-normalr mb-3">
+          <Text className="text-xs text-muted dark:text-muted-dark font-bold tracking-normal mb-3">
             Theme
           </Text>
           <View className="flex-row bg-border/10 dark:bg-border-dark/10 border border-border dark:border-border-dark rounded-2xl p-1">
@@ -274,7 +296,7 @@ export default function ProfileScreen({ navigation }: any) {
                     style={{ marginRight: 6 }}
                   />
                   <Text
-                    className={`text-xs font-semibold tracking-normalr ${
+                    className={`text-xs font-semibold tracking-normal ${
                       selected ? 'text-primary' : 'text-muted dark:text-muted-dark'
                     }`}
                   >
@@ -296,7 +318,7 @@ export default function ProfileScreen({ navigation }: any) {
         <Card className="mb-6 p-5">
           <View className="flex-row justify-between items-center mb-4">
             <View className="flex-1 mr-4">
-              <Text className="text-xs text-muted dark:text-muted-dark font-bold tracking-normalr">
+              <Text className="text-xs text-muted dark:text-muted-dark font-bold tracking-normal">
                 Current Version / Channel
               </Text>
               <Text className="text-sm font-semibold text-text dark:text-text-dark mt-1">
@@ -318,7 +340,7 @@ export default function ProfileScreen({ navigation }: any) {
               updateStatus === 'Up to Date' ? 'bg-emerald-500/10 border border-emerald-500/25' :
               'bg-border/20 border border-border dark:border-border-dark'
             }`}>
-              <Text className={`text-[10px] font-semibold tracking-normalr ${
+              <Text className={`text-[10px] font-semibold tracking-normal ${
                 updateStatus === 'Available' ? 'text-primary' :
                 updateStatus === 'Up to Date' ? 'text-emerald-500' :
                 'text-muted dark:text-muted-dark'
@@ -358,7 +380,7 @@ export default function ProfileScreen({ navigation }: any) {
         </Text>
 
         <Card className="p-5 border-red-500/10 bg-red-500/5 dark:bg-red-500/5 mb-4">
-          <Text className="text-xs text-red-500 dark:text-red-400 font-bold tracking-normalr mb-2">
+          <Text className="text-xs text-red-500 dark:text-red-400 font-bold tracking-normal mb-2">
             Exit Account
           </Text>
           <Text className="text-xs text-muted dark:text-muted-dark leading-relaxed mb-4">
@@ -371,7 +393,7 @@ export default function ProfileScreen({ navigation }: any) {
           >
             <View className="flex-row items-center justify-center">
               <Ionicons name="log-out" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
-              <Text className="text-sm font-semibold text-white tracking-normalr">
+              <Text className="text-sm font-semibold text-white tracking-normal">
                 Log Out
               </Text>
             </View>

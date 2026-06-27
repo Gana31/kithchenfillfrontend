@@ -57,7 +57,7 @@ export default function SuperadminDashboardScreen({ navigation }: { navigation?:
             {/* Row 1: Total Tenants */}
             <Card className="mb-4 p-5 flex-row justify-between items-center bg-gradient-to-r from-card to-card/50">
               <View>
-                <Text className="text-xs text-muted dark:text-muted-dark font-bold tracking-normalr">
+                <Text className="text-xs text-muted dark:text-muted-dark font-bold tracking-normal">
                   Total Registered Kitchens
                 </Text>
                 <Text className="text-3xl font-semibold text-text dark:text-text-dark mt-1">
@@ -75,7 +75,7 @@ export default function SuperadminDashboardScreen({ navigation }: { navigation?:
               <View className="flex-1">
                 <Card className="p-4 bg-emerald-500/5 border-emerald-500/10">
                   <View className="flex-row justify-between items-center mb-2">
-                    <Text className="text-xs text-muted dark:text-muted-dark font-bold tracking-normalr">
+                    <Text className="text-xs text-muted dark:text-muted-dark font-bold tracking-normal">
                       Active
                     </Text>
                     <View className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
@@ -93,7 +93,7 @@ export default function SuperadminDashboardScreen({ navigation }: { navigation?:
               <View className="flex-1">
                 <Card className="p-4 bg-zinc-500/5 border-zinc-500/10">
                   <View className="flex-row justify-between items-center mb-2">
-                    <Text className="text-xs text-muted dark:text-muted-dark font-bold tracking-normalr">
+                    <Text className="text-xs text-muted dark:text-muted-dark font-bold tracking-normal">
                       Suspended
                     </Text>
                     <View className="w-2.5 h-2.5 rounded-full bg-red-500" />
@@ -141,23 +141,24 @@ export default function SuperadminDashboardScreen({ navigation }: { navigation?:
                         <Text className="text-xs text-muted dark:text-muted-dark mt-0.5">
                           Owner: {tenant.ownerId?.name || 'N/A'} ({tenant.ownerId?.email || 'N/A'})
                         </Text>
-                        <Text className="text-[10px] text-primary font-bold mt-1 tracking-normalr">
+                        <Text className="text-[10px] text-primary font-bold mt-1 tracking-normal">
                           Tap to manage workspace
                         </Text>
                       </View>
                       <View
-                        className={`px-2.5 py-1 rounded-full ${
+                        className={`px-3 py-1 rounded-full flex-shrink-0 ${
                           tenant.status === 'active'
                             ? 'bg-emerald-500/10 border border-emerald-500/20'
                             : 'bg-red-500/10 border border-red-500/20'
                         }`}
+                        style={{ minWidth: 64 }}
                       >
                         <Text
-                          className={`text-[10px] font-semibold uppercase ${
+                          className={`text-[10px] font-semibold text-center ${
                             tenant.status === 'active' ? 'text-emerald-500' : 'text-red-500'
                           }`}
                         >
-                          {tenant.status}
+                          {tenant.status === 'active' ? 'Active' : 'Locked'}
                         </Text>
                       </View>
                     </Card>

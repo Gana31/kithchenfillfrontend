@@ -22,7 +22,7 @@ function KpiCard({
 }) {
   return (
     <Card className="p-4 flex-1">
-      <Text className="text-[10px] text-muted dark:text-muted-dark font-bold tracking-normalr">
+      <Text className="text-[10px] text-muted dark:text-muted-dark font-bold tracking-normal">
         {label}
       </Text>
       <Text className={`text-xl font-semibold mt-1 ${accent ?? 'text-text dark:text-text-dark'}`}>

@@ -64,7 +64,7 @@ export default function ConfirmModal({
               activeOpacity={0.7}
               className="flex-1 h-12 border border-border dark:border-border-dark rounded-xl items-center justify-center bg-card dark:bg-card-dark active:bg-border/10"
             >
-              <Text className="text-xs font-semibold text-muted dark:text-muted-dark tracking-normalr">
+              <Text className="text-xs font-semibold text-muted dark:text-muted-dark tracking-normal">
                 {cancelLabel}
               </Text>
             </TouchableOpacity>
@@ -76,7 +76,7 @@ export default function ConfirmModal({
                 isDestructive ? 'bg-red-500' : 'bg-primary'
               }`}
             >
-              <Text className="text-xs font-semibold text-white tracking-normalr">
+              <Text className="text-xs font-semibold text-white tracking-normal">
                 {confirmLabel}
               </Text>
             </TouchableOpacity>

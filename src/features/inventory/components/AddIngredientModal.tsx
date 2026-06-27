@@ -403,7 +403,7 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
               scrollEventThrottle={16}
             >
               {/* Photo Selector */}
-              <Text className="text-xs font-semibold text-text dark:text-text-dark mb-2 tracking-normalr">
+              <Text className="text-xs font-semibold text-text dark:text-text-dark mb-2 tracking-normal">
                 Ingredient Photo
               </Text>
               
@@ -454,7 +454,7 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
               />
 
               {/* Category Badge Selector */}
-              <Text className="text-xs font-semibold text-text dark:text-text-dark mb-2 tracking-normalr">
+              <Text className="text-xs font-semibold text-text dark:text-text-dark mb-2 tracking-normal">
                 Category Badge
               </Text>
               <ScrollView 
@@ -486,7 +486,7 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
               </ScrollView>
 
               {/* Unit Category Selector */}
-              <Text className="text-xs font-semibold text-text dark:text-text-dark mb-2 tracking-normalr">
+              <Text className="text-xs font-semibold text-text dark:text-text-dark mb-2 tracking-normal">
                 Unit Category
               </Text>
               <View className="flex-row mb-5" style={{ gap: 8 }}>

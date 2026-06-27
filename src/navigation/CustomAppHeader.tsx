@@ -22,7 +22,7 @@ export default function CustomAppHeader({ options, route, navigation }: BottomTa
           return {
             title: 'SaaS',
             titleHighlight: 'Admin',
-            subtitle: 'Platform Overview',
+            subtitle: 'Platform Statistics',
           };
         }
         return {
@@ -76,21 +76,28 @@ export default function CustomAppHeader({ options, route, navigation }: BottomTa
   return (
     <View
       style={{
-        overflow: 'hidden',
         borderBottomWidth: 0,
         backgroundColor: 'transparent',
         paddingTop: isImpersonating ? 0 : insets.top,
       }}
     >
       <View className="flex-row justify-between items-center px-6 py-4">
-        <View className="flex-row items-center flex-1 mr-2" style={{ gap: 10 }}>
-          <View className="flex-shrink">
-            <Text className="text-2xl font-semibold text-text dark:text-text-dark tracking-tight">
+        <View className="flex-row items-center flex-1 mr-2 min-w-0" style={{ gap: 10 }}>
+          <View className="flex-1 min-w-0">
+            <Text
+              className="text-2xl font-semibold text-text dark:text-text-dark tracking-tight"
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.85}
+            >
               {title}
               <Text className="text-primary">{titleHighlight}</Text>
               <Text className="text-primary text-2xl">.</Text>
             </Text>
-            <Text className="text-xs text-muted dark:text-muted-dark font-medium mt-0.5 tracking-normal">
+            <Text
+              className="text-xs text-muted dark:text-muted-dark font-medium mt-0.5 tracking-normal"
+              numberOfLines={1}
+            >
               {subtitle}
             </Text>
           </View>

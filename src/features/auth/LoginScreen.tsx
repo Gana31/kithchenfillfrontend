@@ -14,6 +14,7 @@ import { loginUser } from './authSlice';
 type AuthStackParamList = {
   Login: undefined;
   Register: undefined;
+  ForgotPassword: undefined;
 };
 
 export default function LoginScreen() {
@@ -138,9 +139,12 @@ export default function LoginScreen() {
 
             {/* Help Links */}
             <View className="mt-4 items-center">
-              <TouchableOpacity activeOpacity={0.7}>
-                <Text className="text-muted/60 dark:text-muted-dark/50 text-[10px] font-bold tracking-wide uppercase">
-                  Forgot password? Contact admin
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => navigation.navigate('ForgotPassword')}
+              >
+                <Text className="text-primary text-xs font-semibold">
+                  Forgot password?
                 </Text>
               </TouchableOpacity>
             </View>

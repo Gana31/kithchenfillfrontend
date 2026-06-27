@@ -12,6 +12,7 @@ interface InputProps {
   secureTextEntry?: boolean;
   keyboardType?: KeyboardTypeOptions;
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
+  maxLength?: number;
   className?: string;
 }
 
@@ -23,6 +24,7 @@ export default function Input({
   secureTextEntry = false,
   keyboardType = 'default',
   autoCapitalize = 'none',
+  maxLength,
   className = '',
 }: InputProps) {
   const isDark = useAppSelector(selectIsDark);
@@ -41,6 +43,7 @@ export default function Input({
           secureTextEntry={secureTextEntry ? !isPasswordVisible : false}
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
+          maxLength={maxLength}
           style={{ minHeight: 56, paddingHorizontal: 20, paddingRight: 65, textAlignVertical: 'center' }}
           className="w-full bg-background dark:bg-background-dark text-text dark:text-text-dark border border-border dark:border-border-dark rounded-2xl py-3.5 text-base focus:border-primary"
         />

@@ -81,7 +81,7 @@ function IngredientCard({
               {name}
             </Text>
             <View className={`self-start px-1.5 py-0.5 rounded-md mt-1 ${bgClass}`}>
-              <Text className={`text-[8px] font-semibold tracking-normalr ${textClass}`}>
+              <Text className={`text-[8px] font-semibold tracking-normal ${textClass}`}>
                 {type}
               </Text>
             </View>
@@ -95,7 +95,7 @@ function IngredientCard({
             activeOpacity={0.8}
             className="bg-border/10 dark:bg-border-dark/10 border border-border/20 dark:border-border-dark/20 rounded-xl px-3 py-1.5 items-center w-full"
           >
-            <Text className="text-[7px] text-muted dark:text-muted-dark font-bold tracking-normalr mb-0.5">
+            <Text className="text-[7px] text-muted dark:text-muted-dark font-bold tracking-normal mb-0.5">
               Stock
             </Text>
             <View className="flex-row items-center" style={{ gap: 3 }}>

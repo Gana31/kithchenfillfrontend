@@ -11,6 +11,7 @@ import SplashScreen from './src/features/auth/SplashScreen';
 import OnboardingScreen from './src/features/auth/OnboardingScreen';
 import LoginScreen from './src/features/auth/LoginScreen';
 import RegisterScreen from './src/features/auth/RegisterScreen';
+import ForgotPasswordScreen from './src/features/auth/ForgotPasswordScreen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { loadTheme, setSystemIsDark, selectIsDark } from './src/store/themeSlice';
 import {
@@ -157,6 +158,7 @@ function RootApp() {
                   />
                   <Stack.Screen name="Login" component={LoginScreen} />
                   <Stack.Screen name="Register" component={RegisterScreen} />
+                  <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
                 </>
               )}
             </Stack.Navigator>
