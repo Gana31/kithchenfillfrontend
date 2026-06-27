@@ -161,7 +161,7 @@ export default function RecipeBuilderScreen() {
                   <Card key={recipe._id} className="p-5">
                     <View className="flex-row justify-between items-start">
                       <View className="flex-grow pr-3">
-                        <Text className="text-base font-black text-text dark:text-text-dark leading-tight">
+                        <Text className="text-base font-semibold text-text dark:text-text-dark leading-tight">
                           {recipe.name}
                         </Text>
                         <View className="flex-row items-center mt-2 flex-wrap" style={{ gap: 12 }}>
@@ -182,7 +182,7 @@ export default function RecipeBuilderScreen() {
 
                       <View className="items-end">
                         <Text className="text-xs text-muted dark:text-muted-dark font-bold uppercase">Total cost</Text>
-                        <Text className="text-lg font-black text-primary mt-0.5">{formatInr(batchCost)}</Text>
+                        <Text className="text-lg font-semibold text-primary mt-0.5">{formatInr(batchCost)}</Text>
                       </View>
                     </View>
 

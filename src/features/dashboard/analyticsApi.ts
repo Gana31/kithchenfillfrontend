@@ -34,42 +34,50 @@ export interface SalesTrendRow {
   orders: number;
 }
 
+export interface AnalyticsQueryScope {
+  /** Included in RTK cache key only — scopes data per tenant workspace */
+  tenantKey?: string | null;
+}
+
 export const analyticsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    getDailySummary: builder.query<{ success: boolean; summary: DailySummary }, string | undefined>({
-      query: (date) => ({
+    getDailySummary: builder.query<
+      { success: boolean; summary: DailySummary },
+      ({ date?: string } & AnalyticsQueryScope) | void
+    >({
+      query: (args) => ({
         url: '/analytics/daily',
-        params: date ? { date } : undefined,
+        params: args?.date ? { date: args.date } : undefined,
       }),
       providesTags: [{ type: 'Order', id: 'ANALYTICS' }],
     }),
     getTopPlates: builder.query<
       { success: boolean; topPlates: TopPlateRow[] },
-      { date?: string; limit?: number }
+      ({ date?: string; limit?: number } & AnalyticsQueryScope) | void
     >({
-      query: ({ date, limit = 5 }) => ({
+      query: (args) => ({
         url: '/analytics/top-plates',
-        params: { date, limit },
+        params: { date: args?.date, limit: args?.limit ?? 5 },
       }),
       providesTags: [{ type: 'Order', id: 'ANALYTICS' }],
     }),
     getPlatformComparison: builder.query<
       { success: boolean; comparison: PlatformRow[] },
-      string | undefined
+      ({ date?: string } & AnalyticsQueryScope) | void
     >({
-      query: (date) => ({
+      query: (args) => ({
         url: '/analytics/platform-comparison',
-        params: date ? { date } : undefined,
+        params: args?.date ? { date: args.date } : undefined,
       }),
       providesTags: [{ type: 'Order', id: 'ANALYTICS' }],
     }),
     getSalesTrend: builder.query<
       { success: boolean; trend: SalesTrendRow[] },
-      { startDate?: string; endDate?: string }
+      ({ startDate?: string; endDate?: string } & AnalyticsQueryScope) | void
     >({
-      query: ({ startDate, endDate }) => ({
+      query: (args) => ({
         url: '/analytics/sales-trend',
-        params: { startDate, endDate },
+        params: { startDate: args?.startDate, endDate: args?.endDate },
       }),
       providesTags: [{ type: 'Order', id: 'ANALYTICS' }],
     }),

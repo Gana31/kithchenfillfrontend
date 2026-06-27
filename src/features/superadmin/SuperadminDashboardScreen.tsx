@@ -8,8 +8,10 @@ import Card from '../../components/Card';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors } from '../../hooks/useThemeColors';
 import ScreenContainer from '../../components/ScreenContainer';
+import { openOwnerWorkspace } from './superadminNavigation';
+import { TenantData } from './superadminApi';
 
-export default function SuperadminDashboardScreen() {
+export default function SuperadminDashboardScreen({ navigation }: { navigation?: any }) {
   const dispatch = useAppDispatch();
   const user = useAppSelector(selectCurrentUser);
   const { primary, isDark } = useThemeColors();
@@ -26,33 +28,18 @@ export default function SuperadminDashboardScreen() {
   const activeTenants = tenants.filter(t => t.status === 'active').length;
   const deactivatedTenants = totalTenants - activeTenants;
 
+  const handleManageWorkspace = (tenant: TenantData) => {
+    if (!navigation) return;
+    openOwnerWorkspace(navigation, tenant, dispatch);
+  };
+
   return (
     <>
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <ScreenContainer scrollable contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 16 }}>
 
 
-        {/* Dashboard Banner */}
-        <Card className="mb-6 bg-primary/10 border-primary/20">
-          <View className="flex-row items-center space-x-3">
-            <View className="p-2.5 rounded-xl bg-primary/20">
-              <Ionicons name="shield-checkmark" size={24} color={primary} />
-            </View>
-            <View className="flex-1 ml-3">
-              <Text className="text-sm font-black text-text dark:text-text-dark">
-                Welcome, {user?.name || 'Superadmin'}!
-              </Text>
-              <Text className="text-xs text-muted dark:text-muted-dark mt-0.5 leading-relaxed">
-                You have global administrator access. Manage tenants, activate/deactivate accounts, and monitor metrics.
-              </Text>
-            </View>
-          </View>
-        </Card>
 
-        {/* Metrics Grid */}
-        <Text className="text-lg font-black text-text dark:text-text-dark mb-4">
-          Platform Statistics
-        </Text>
 
         {isLoading ? (
           <View className="py-8 justify-center items-center">
@@ -70,10 +57,10 @@ export default function SuperadminDashboardScreen() {
             {/* Row 1: Total Tenants */}
             <Card className="mb-4 p-5 flex-row justify-between items-center bg-gradient-to-r from-card to-card/50">
               <View>
-                <Text className="text-xs text-muted dark:text-muted-dark font-bold uppercase tracking-wider">
+                <Text className="text-xs text-muted dark:text-muted-dark font-bold tracking-normalr">
                   Total Registered Kitchens
                 </Text>
-                <Text className="text-3xl font-black text-text dark:text-text-dark mt-1">
+                <Text className="text-3xl font-semibold text-text dark:text-text-dark mt-1">
                   {totalTenants}
                 </Text>
               </View>
@@ -88,12 +75,12 @@ export default function SuperadminDashboardScreen() {
               <View className="flex-1">
                 <Card className="p-4 bg-emerald-500/5 border-emerald-500/10">
                   <View className="flex-row justify-between items-center mb-2">
-                    <Text className="text-xs text-muted dark:text-muted-dark font-bold uppercase tracking-wider">
+                    <Text className="text-xs text-muted dark:text-muted-dark font-bold tracking-normalr">
                       Active
                     </Text>
                     <View className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
                   </View>
-                  <Text className="text-2xl font-black text-emerald-500 mt-1">
+                  <Text className="text-2xl font-semibold text-emerald-500 mt-1">
                     {activeTenants}
                   </Text>
                   <Text className="text-[10px] text-muted dark:text-muted-dark font-medium mt-1">
@@ -106,12 +93,12 @@ export default function SuperadminDashboardScreen() {
               <View className="flex-1">
                 <Card className="p-4 bg-zinc-500/5 border-zinc-500/10">
                   <View className="flex-row justify-between items-center mb-2">
-                    <Text className="text-xs text-muted dark:text-muted-dark font-bold uppercase tracking-wider">
+                    <Text className="text-xs text-muted dark:text-muted-dark font-bold tracking-normalr">
                       Suspended
                     </Text>
                     <View className="w-2.5 h-2.5 rounded-full bg-red-500" />
                   </View>
-                  <Text className="text-2xl font-black text-red-500 mt-1">
+                  <Text className="text-2xl font-semibold text-red-500 mt-1">
                     {deactivatedTenants}
                   </Text>
                   <Text className="text-[10px] text-muted dark:text-muted-dark font-medium mt-1">
@@ -123,7 +110,7 @@ export default function SuperadminDashboardScreen() {
 
             {/* Recent Registrations Section */}
             <View className="flex-row justify-between items-center mb-4">
-              <Text className="text-lg font-black text-text dark:text-text-dark">
+              <Text className="text-lg font-semibold text-text dark:text-text-dark">
                 Recent Workspace Signs
               </Text>
               <TouchableOpacity onPress={refetch} activeOpacity={0.7} className="flex-row items-center">
@@ -141,27 +128,40 @@ export default function SuperadminDashboardScreen() {
             ) : (
               <View className="space-y-3" style={{ gap: 12 }}>
                 {tenants.slice(0, 5).map((tenant) => (
-                  <Card key={tenant._id} className="p-4 flex-row justify-between items-center">
-                    <View className="flex-1 pr-3">
-                      <Text className="text-sm font-bold text-text dark:text-text-dark">
-                        {tenant.businessName}
-                      </Text>
-                      <Text className="text-xs text-muted dark:text-muted-dark mt-0.5">
-                        Owner: {tenant.ownerId?.name || 'N/A'} ({tenant.ownerId?.email || 'N/A'})
-                      </Text>
-                    </View>
-                    <View className={`px-2.5 py-1 rounded-full ${
-                      tenant.status === 'active' 
-                        ? 'bg-emerald-500/10 border border-emerald-500/20' 
-                        : 'bg-red-500/10 border border-red-500/20'
-                    }`}>
-                      <Text className={`text-[10px] font-black uppercase ${
-                        tenant.status === 'active' ? 'text-emerald-500' : 'text-red-500'
-                      }`}>
-                        {tenant.status}
-                      </Text>
-                    </View>
-                  </Card>
+                  <TouchableOpacity
+                    key={tenant._id}
+                    activeOpacity={0.85}
+                    onPress={() => handleManageWorkspace(tenant)}
+                  >
+                    <Card className="p-4 flex-row justify-between items-center">
+                      <View className="flex-1 pr-3">
+                        <Text className="text-sm font-bold text-text dark:text-text-dark">
+                          {tenant.businessName}
+                        </Text>
+                        <Text className="text-xs text-muted dark:text-muted-dark mt-0.5">
+                          Owner: {tenant.ownerId?.name || 'N/A'} ({tenant.ownerId?.email || 'N/A'})
+                        </Text>
+                        <Text className="text-[10px] text-primary font-bold mt-1 tracking-normalr">
+                          Tap to manage workspace
+                        </Text>
+                      </View>
+                      <View
+                        className={`px-2.5 py-1 rounded-full ${
+                          tenant.status === 'active'
+                            ? 'bg-emerald-500/10 border border-emerald-500/20'
+                            : 'bg-red-500/10 border border-red-500/20'
+                        }`}
+                      >
+                        <Text
+                          className={`text-[10px] font-semibold uppercase ${
+                            tenant.status === 'active' ? 'text-emerald-500' : 'text-red-500'
+                          }`}
+                        >
+                          {tenant.status}
+                        </Text>
+                      </View>
+                    </Card>
+                  </TouchableOpacity>
                 ))}
               </View>
             )}

@@ -4,7 +4,8 @@ import { StatusBar } from 'expo-status-bar';
 import Card from '../../components/Card';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors } from '../../hooks/useThemeColors';
-import { useAppDispatch } from '../../store/store';
+import { useAppDispatch, useAppSelector } from '../../store/store';
+import { selectActiveTenantId } from '../auth/authSlice';
 import { showToast } from '../../store/toastSlice';
 import ScreenContainer from '../../components/ScreenContainer';
 import { useCreateManualOrderMutation } from './ordersApi';
@@ -25,8 +26,12 @@ function menuIcon(item: CounterMenuItem): string {
 export default function CounterScreen({ navigation }: any) {
   const dispatch = useAppDispatch();
   const { primary, muted, isDark } = useThemeColors();
+  const tenantKey = useAppSelector(selectActiveTenantId);
   const today = formatDateKey(new Date());
-  const { data: summaryData, refetch: refetchSummary } = useGetDailySummaryQuery(today);
+  const { data: summaryData, refetch: refetchSummary } = useGetDailySummaryQuery(
+    { date: today, tenantKey },
+    { skip: !tenantKey }
+  );
   const { data: menuData, isLoading: menuLoading, isFetching, refetch: refetchMenu } = useGetCounterMenuQuery();
   const [createManualOrder, { isLoading: saving }] = useCreateManualOrderMutation();
 
@@ -97,10 +102,10 @@ export default function CounterScreen({ navigation }: any) {
         }}
       >
         <Card className="mb-6 p-5">
-          <Text className="text-xs text-muted dark:text-muted-dark font-bold uppercase tracking-wider">
+          <Text className="text-xs text-muted dark:text-muted-dark font-bold tracking-normalr">
             Today&apos;s counter sales
           </Text>
-          <Text className="text-3xl font-black text-text dark:text-text-dark mt-1">{formatInr(todaysTotal)}</Text>
+          <Text className="text-3xl font-semibold text-text dark:text-text-dark mt-1">{formatInr(todaysTotal)}</Text>
           <View className="mt-3 pt-3 border-t border-border/20 dark:border-border-dark/20 flex-row justify-between">
             <Text className="text-xs text-muted dark:text-muted-dark">Making cost</Text>
             <Text className="text-xs font-bold text-red-500">{formatInr(summary?.makingCost ?? 0)}</Text>
@@ -111,7 +116,7 @@ export default function CounterScreen({ navigation }: any) {
           </View>
         </Card>
 
-        <Text className="text-lg font-black text-text dark:text-text-dark mb-4">Quick counter plates</Text>
+        <Text className="text-lg font-semibold text-text dark:text-text-dark mb-4">Quick counter plates</Text>
 
         {menuLoading ? (
           <View className="py-12 items-center">
@@ -121,7 +126,7 @@ export default function CounterScreen({ navigation }: any) {
         ) : menuItems.length === 0 ? (
           <Card className="p-6 items-center mb-8">
             <Ionicons name="restaurant-outline" size={36} color={muted} />
-            <Text className="text-base font-black text-text dark:text-text-dark mt-3">No plates on menu</Text>
+            <Text className="text-base font-semibold text-text dark:text-text-dark mt-3">No plates on menu</Text>
             <Text className="text-xs text-muted dark:text-muted-dark text-center mt-1 leading-relaxed">
               Add recipes in the Recipes tab first. Each portion will appear here with live costs from inventory.
             </Text>
@@ -145,11 +150,11 @@ export default function CounterScreen({ navigation }: any) {
                   <Text className="text-[10px] text-muted dark:text-muted-dark font-bold uppercase">
                     {item.recipeName}
                   </Text>
-                  <Text className="text-xs font-black text-text dark:text-text-dark text-center leading-tight min-h-[32px] mt-1">
+                  <Text className="text-xs font-semibold text-text dark:text-text-dark text-center leading-tight min-h-[32px] mt-1">
                     {item.name}
                   </Text>
                   <Text className="text-[10px] text-muted dark:text-muted-dark mt-0.5">{item.portionLabel}</Text>
-                  <Text className="text-sm font-extrabold text-primary mt-2">{formatInr(item.price)}</Text>
+                  <Text className="text-sm font-semibold text-primary mt-2">{formatInr(item.price)}</Text>
                   <Text className="text-[9px] text-muted dark:text-muted-dark mt-1">
                     cost {formatInr(item.makingCost)}
                   </Text>

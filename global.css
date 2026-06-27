@@ -20,6 +20,41 @@
   --color-blob-purple-dark: #C084FC;
   --color-blob-yellow: #EAB308;
   --color-blob-yellow-dark: #FACC15;
+
+  /* Friendly, readable sans — Plus Jakarta Sans */
+  --font-sans: PlusJakartaSans_400Regular;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+}
+
+@layer base {
+  * {
+    font-family: PlusJakartaSans_400Regular;
+  }
+}
+
+/* React Native maps each weight to its font file on Android */
+@layer utilities {
+  .font-normal {
+    font-family: PlusJakartaSans_400Regular;
+  }
+  .font-medium {
+    font-family: PlusJakartaSans_500Medium;
+  }
+  .font-semibold {
+    font-family: PlusJakartaSans_600SemiBold;
+  }
+  .font-bold {
+    font-family: PlusJakartaSans_700Bold;
+  }
+  .font-extrabold {
+    font-family: PlusJakartaSans_700Bold;
+  }
+  .font-black {
+    font-family: PlusJakartaSans_700Bold;
+  }
 }
 
 @variant dark (&:where(.dark, .dark *));

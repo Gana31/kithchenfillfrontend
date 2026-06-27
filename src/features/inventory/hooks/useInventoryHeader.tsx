@@ -26,7 +26,7 @@ function LowStockBadge({ count }: { count: number }) {
       style={{ gap: 4 }}
     >
       <Ionicons name="warning" size={14} color={hasLowStock ? danger : muted} />
-      <Text className={`text-[11px] font-black ${hasLowStock ? 'text-red-500' : 'text-muted dark:text-muted-dark'}`}>
+      <Text className={`text-[11px] font-semibold ${hasLowStock ? 'text-red-500' : 'text-muted dark:text-muted-dark'}`}>
         {count}
       </Text>
     </View>

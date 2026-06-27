@@ -5,6 +5,8 @@ import { useNavigation } from '@react-navigation/native';
 import Card from '../../components/Card';
 import ScreenContainer from '../../components/ScreenContainer';
 import { useThemeColors } from '../../hooks/useThemeColors';
+import { useAppSelector } from '../../store/store';
+import { selectActiveTenantId } from '../auth/authSlice';
 import {
   useGetDailySummaryQuery,
   useGetTopPlatesQuery,
@@ -21,20 +23,31 @@ import { formatDateKey, formatInr, trendEndDateFromSelected, trendStartDateFromS
 export default function DashboardScreen() {
   const navigation = useNavigation<any>();
   const { primary, isDark } = useThemeColors();
+  const tenantKey = useAppSelector(selectActiveTenantId);
   const [selectedDate, setSelectedDate] = useState(formatDateKey(new Date()));
 
   const trendRange = useMemo(
     () => ({
       startDate: trendStartDateFromSelected(selectedDate, 6),
       endDate: trendEndDateFromSelected(selectedDate),
+      tenantKey,
     }),
-    [selectedDate]
+    [selectedDate, tenantKey]
   );
 
-  const { data: summaryData, isLoading: summaryLoading, isFetching, refetch } = useGetDailySummaryQuery(selectedDate);
-  const { data: topPlatesData } = useGetTopPlatesQuery({ date: selectedDate, limit: 5 });
-  const { data: platformData } = useGetPlatformComparisonQuery(selectedDate);
-  const { data: trendData } = useGetSalesTrendQuery(trendRange);
+  const queryOpts = { skip: !tenantKey };
+
+  const { data: summaryData, isLoading: summaryLoading, isFetching, refetch } =
+    useGetDailySummaryQuery({ date: selectedDate, tenantKey }, queryOpts);
+  const { data: topPlatesData } = useGetTopPlatesQuery(
+    { date: selectedDate, limit: 5, tenantKey },
+    queryOpts
+  );
+  const { data: platformData } = useGetPlatformComparisonQuery(
+    { date: selectedDate, tenantKey },
+    queryOpts
+  );
+  const { data: trendData } = useGetSalesTrendQuery(trendRange, queryOpts);
 
   const summary = summaryData?.summary;
 
@@ -47,13 +60,13 @@ export default function DashboardScreen() {
         {isFetching ? (
           <View className="mb-3 flex-row items-center" style={{ gap: 8 }}>
             <ActivityIndicator size="small" color={primary} />
-            <Text className="text-[10px] font-bold text-muted dark:text-muted-dark uppercase tracking-widest">
+            <Text className="text-[10px] font-bold text-muted dark:text-muted-dark tracking-normal">
               Updating dashboard...
             </Text>
           </View>
         ) : null}
 
-        <Text className="text-lg font-black text-text dark:text-text-dark mb-4">
+        <Text className="text-lg font-semibold text-text dark:text-text-dark mb-4">
           Kitchen pulse
         </Text>
 
@@ -68,7 +81,7 @@ export default function DashboardScreen() {
 
         <Card className="p-5 items-center mb-6">
           <Text className="text-3xl mb-2">🍽️</Text>
-          <Text className="text-sm font-black text-text dark:text-text-dark text-center">
+          <Text className="text-sm font-semibold text-text dark:text-text-dark text-center">
             Log a sale from Counter
           </Text>
           <Text className="text-xs text-muted dark:text-muted-dark text-center mt-1 mb-4 leading-relaxed px-4">
@@ -79,16 +92,16 @@ export default function DashboardScreen() {
             onPress={() => navigation.navigate('Counter')}
             className="w-full py-3 rounded-2xl bg-primary items-center"
           >
-            <Text className="text-sm font-black text-white">Open Counter</Text>
+            <Text className="text-sm font-semibold text-white">Open Counter</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => refetch()} className="mt-3">
-            <Text className="text-[10px] font-black text-primary uppercase">Refresh data</Text>
+            <Text className="text-[10px] font-semibold text-primary uppercase">Refresh data</Text>
           </TouchableOpacity>
         </Card>
 
         {summary ? (
           <Card className="p-4 mb-8 bg-primary/5 border-primary/20">
-            <Text className="text-[10px] font-black text-primary uppercase tracking-widest mb-1">
+            <Text className="text-[10px] font-semibold text-primary tracking-normal mb-1">
               Day snapshot
             </Text>
             <Text className="text-xs text-text dark:text-text-dark leading-relaxed">

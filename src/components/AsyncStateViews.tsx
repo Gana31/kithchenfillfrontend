@@ -15,7 +15,7 @@ export function LoadingView({ message = 'Loading...', compact = false }: Loading
   return (
     <View className={compact ? 'py-12 items-center' : 'py-24 justify-center items-center'}>
       <ActivityIndicator size="large" color={primary} />
-      <Text className="text-xs text-muted dark:text-muted-dark mt-3 font-semibold uppercase tracking-widest">
+      <Text className="text-xs text-muted dark:text-muted-dark mt-3 font-semibold tracking-normal">
         {message}
       </Text>
     </View>
@@ -41,7 +41,7 @@ export function ErrorState({
       <Text className="text-red-500 text-xs font-bold mb-4 mt-3 text-center px-6">{message}</Text>
       {onRetry ? (
         <TouchableOpacity onPress={onRetry} className="px-4 py-2 rounded-xl bg-card border border-border">
-          <Text className="text-primary text-xs font-black uppercase">{retryLabel}</Text>
+          <Text className="text-primary text-xs font-semibold uppercase">{retryLabel}</Text>
         </TouchableOpacity>
       ) : null}
     </View>
@@ -69,7 +69,7 @@ export function EmptyStateCard({
     <Card className="p-8 items-center justify-center">
       {icon ? <Ionicons name={icon} size={36} color={muted} /> : null}
       {title ? (
-        <Text className="text-base font-black text-text dark:text-text-dark mt-3">{title}</Text>
+        <Text className="text-base font-semibold text-text dark:text-text-dark mt-3">{title}</Text>
       ) : null}
       <Text
         className={`text-muted dark:text-muted-dark text-xs font-bold text-center ${title ? 'mt-1' : ''}`}
@@ -81,7 +81,7 @@ export function EmptyStateCard({
           onPress={onAction}
           className="mt-4 px-4 py-2 rounded-xl bg-primary/15 border border-primary"
         >
-          <Text className="text-sm font-black text-primary">{actionLabel}</Text>
+          <Text className="text-sm font-semibold text-primary">{actionLabel}</Text>
         </TouchableOpacity>
       ) : null}
     </Card>

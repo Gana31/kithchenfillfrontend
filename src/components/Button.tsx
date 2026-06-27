@@ -32,7 +32,7 @@ export default function Button({
         <ActivityIndicator color={isPrimary ? '#FFFFFF' : COLORS.primary} size="small" />
       ) : (
         <Text
-          className={`text-sm font-extrabold tracking-wider uppercase ${
+          className={`text-sm font-semibold ${
             isPrimary ? 'text-white' : 'text-text dark:text-text-dark'
           }`}
         >

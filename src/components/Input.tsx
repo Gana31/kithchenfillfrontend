@@ -51,7 +51,7 @@ export default function Input({
             activeOpacity={0.7}
             className="py-1 px-2"
           >
-            <Text className="text-[10px] font-black text-primary uppercase tracking-widest">
+            <Text className="text-[10px] font-semibold text-primary tracking-normal">
               {isPasswordVisible ? 'Hide' : 'Show'}
             </Text>
           </TouchableOpacity>

@@ -97,11 +97,11 @@ export default function Toast() {
       {/* Message and Optional Title */}
       <View className="flex-1 mr-2">
         {title ? (
-          <Text className="text-[10px] font-black text-text dark:text-text-dark uppercase tracking-widest mb-0.5">
+          <Text className="text-[10px] font-semibold text-text dark:text-text-dark tracking-normal mb-0.5">
             {title}
           </Text>
         ) : null}
-        <Text className="text-xs font-black text-text dark:text-text-dark leading-relaxed">
+        <Text className="text-xs font-semibold text-text dark:text-text-dark leading-relaxed">
           {message}
         </Text>
       </View>

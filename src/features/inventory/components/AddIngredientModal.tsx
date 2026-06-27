@@ -377,7 +377,7 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
 
             {/* Modal Header */}
             <View className="flex-row justify-between items-center mb-6">
-              <Text className="text-xl font-black text-text dark:text-text-dark">
+              <Text className="text-xl font-semibold text-text dark:text-text-dark">
                 {ingredient ? 'Edit Ingredient' : 'Add New Ingredient'}
               </Text>
               <TouchableOpacity 
@@ -403,7 +403,7 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
               scrollEventThrottle={16}
             >
               {/* Photo Selector */}
-              <Text className="text-xs font-black text-text dark:text-text-dark mb-2 uppercase tracking-wider">
+              <Text className="text-xs font-semibold text-text dark:text-text-dark mb-2 tracking-normalr">
                 Ingredient Photo
               </Text>
               
@@ -454,7 +454,7 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
               />
 
               {/* Category Badge Selector */}
-              <Text className="text-xs font-black text-text dark:text-text-dark mb-2 uppercase tracking-wider">
+              <Text className="text-xs font-semibold text-text dark:text-text-dark mb-2 tracking-normalr">
                 Category Badge
               </Text>
               <ScrollView 
@@ -486,7 +486,7 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
               </ScrollView>
 
               {/* Unit Category Selector */}
-              <Text className="text-xs font-black text-text dark:text-text-dark mb-2 uppercase tracking-wider">
+              <Text className="text-xs font-semibold text-text dark:text-text-dark mb-2 tracking-normalr">
                 Unit Category
               </Text>
               <View className="flex-row mb-5" style={{ gap: 8 }}>

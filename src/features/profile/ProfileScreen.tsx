@@ -14,6 +14,7 @@ import { useThemeColors } from '../../hooks/useThemeColors';
 import ConfirmModal from '../../components/ConfirmModal';
 import ScreenContainer from '../../components/ScreenContainer';
 import * as Updates from 'expo-updates';
+import { checkForOtaUpdate, downloadAndApplyOtaUpdate } from '../../utils/otaUpdates';
 
 export default function ProfileScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
@@ -30,7 +31,23 @@ export default function ProfileScreen({ navigation }: any) {
   const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
 
   const currentUpdateId = Updates.updateId || null;
-  const currentChannel = Updates.channel || 'Development';
+  const currentChannel = Updates.channel || 'development';
+
+  const channelLabel =
+    currentChannel === 'production'
+      ? 'Live'
+      : currentChannel === 'preview'
+        ? 'Test (preview)'
+        : currentChannel === 'development'
+          ? 'Development'
+          : currentChannel;
+
+  const channelHint =
+    currentChannel === 'preview'
+      ? 'Test APK — receives preview updates only, not production.'
+      : currentChannel === 'production'
+        ? 'Live build — receives production updates.'
+        : null;
 
   const handleCheckForUpdates = async () => {
     if (!Updates.isEnabled) {
@@ -47,80 +64,77 @@ export default function ProfileScreen({ navigation }: any) {
     if (isUpdateAvailable) {
       setUpdating(true);
       setUpdateStatus('Downloading...');
-      try {
-        const result = await Updates.fetchUpdateAsync();
-        if (result.isNew) {
-          setUpdateStatus('Applying...');
-          dispatch(
-            showToast({
-              title: 'Update Downloaded',
-              message: 'Restarting app to apply the new update...',
-              type: 'success',
-            })
-          );
-          setTimeout(async () => {
-            await Updates.reloadAsync();
-          }, 2000);
-        } else {
-          setUpdateStatus('Up to Date');
-          setIsUpdateAvailable(false);
-          dispatch(
-            showToast({
-              title: 'Already Up to Date',
-              message: 'No new updates found.',
-              type: 'info',
-            })
-          );
-        }
-      } catch (err: any) {
-        setUpdateStatus('Error');
+      const result = await downloadAndApplyOtaUpdate();
+      if (result.status === 'downloaded') {
+        return;
+      }
+      setUpdating(false);
+      if (result.status === 'already_latest') {
+        setIsUpdateAvailable(false);
+        setUpdateStatus('Up to Date');
         dispatch(
           showToast({
-            title: 'Update Failed',
-            message: err.message || 'Failed to download update.',
-            type: 'error',
+            title: 'Already Up to Date',
+            message: 'No new update to install.',
+            type: 'info',
           })
         );
-      } finally {
-        setUpdating(false);
+        return;
       }
+      setUpdateStatus('Error');
+      dispatch(
+        showToast({
+          title: 'Update Failed',
+          message: result.status === 'error' ? result.message : 'Could not apply update.',
+          type: 'error',
+        })
+      );
       return;
     }
 
     setChecking(true);
     setUpdateStatus('Checking...');
     try {
-      const updateCheck = await Updates.checkForUpdateAsync();
-      if (updateCheck.isAvailable) {
+      const result = await checkForOtaUpdate();
+      if (result.status === 'available') {
         setIsUpdateAvailable(true);
         setUpdateStatus('Available');
         dispatch(
           showToast({
             title: 'Update Available',
-            message: 'A new update is ready for download.',
+            message: 'Tap the button again to download and install.',
             type: 'success',
           })
         );
-      } else {
+      } else if (result.status === 'up_to_date') {
         setIsUpdateAvailable(false);
         setUpdateStatus('Up to Date');
         dispatch(
           showToast({
             title: 'Up to Date',
-            message: 'You are running the latest version of the app.',
+            message: 'You are running the latest version.',
             type: 'success',
           })
         );
+      } else if (result.status === 'disabled') {
+        setUpdateStatus('Disabled');
+        dispatch(
+          showToast({
+            title: 'Not Supported',
+            message: 'OTA Updates are disabled in this build.',
+            type: 'info',
+          })
+        );
+      } else {
+        setUpdateStatus('Error');
+        dispatch(
+          showToast({
+            title: 'Check Failed',
+            message: result.message,
+            type: 'error',
+          })
+        );
       }
-    } catch (err: any) {
-      setUpdateStatus('Error');
-      dispatch(
-        showToast({
-          title: 'Check Failed',
-          message: err.message || 'Failed to check for updates.',
-          type: 'error',
-        })
-      );
     } finally {
       setChecking(false);
     }
@@ -135,7 +149,7 @@ export default function ProfileScreen({ navigation }: any) {
           className="px-3.5 py-2 rounded-xl bg-red-500/10 border border-red-500/20 flex-row items-center mr-6 shadow-sm"
         >
           <Ionicons name="log-out-outline" size={16} color={danger} style={{ marginRight: 6 }} />
-          <Text className="text-xs font-black text-red-500 uppercase tracking-wider">
+          <Text className="text-xs font-semibold text-red-500 tracking-normalr">
             Log Out
           </Text>
         </TouchableOpacity>
@@ -193,21 +207,21 @@ export default function ProfileScreen({ navigation }: any) {
           <View className="w-20 h-20 rounded-full bg-primary/10 border border-primary/20 items-center justify-center mb-3">
             <Ionicons name="person" size={40} color={primary} />
           </View>
-          <Text className="text-lg font-black text-text dark:text-text-dark">
+          <Text className="text-lg font-semibold text-text dark:text-text-dark">
             {user?.name || 'User Name'}
           </Text>
           <Text className="text-xs text-muted dark:text-muted-dark font-medium mt-0.5">
             {user?.email || 'user@example.com'}
           </Text>
           <View className="px-3 py-1 rounded-full bg-primary/15 border border-primary/25 mt-3">
-            <Text className="text-[10px] font-black uppercase text-primary tracking-wider">
+            <Text className="text-[10px] font-semibold uppercase text-primary tracking-wider">
               {user?.role || 'User'}
             </Text>
           </View>
         </Card>
 
         {/* Update Details Section */}
-        <Text className="text-lg font-black text-text dark:text-text-dark mb-4">
+        <Text className="text-lg font-semibold text-text dark:text-text-dark mb-4">
           Account Settings
         </Text>
 
@@ -233,12 +247,12 @@ export default function ProfileScreen({ navigation }: any) {
           />
         </Card>
 
-        <Text className="text-lg font-black text-text dark:text-text-dark mb-4">
+        <Text className="text-lg font-semibold text-text dark:text-text-dark mb-4">
           Appearance
         </Text>
 
         <Card className="mb-6 p-5">
-          <Text className="text-xs text-muted dark:text-muted-dark font-bold uppercase tracking-wider mb-3">
+          <Text className="text-xs text-muted dark:text-muted-dark font-bold tracking-normalr mb-3">
             Theme
           </Text>
           <View className="flex-row bg-border/10 dark:bg-border-dark/10 border border-border dark:border-border-dark rounded-2xl p-1">
@@ -260,7 +274,7 @@ export default function ProfileScreen({ navigation }: any) {
                     style={{ marginRight: 6 }}
                   />
                   <Text
-                    className={`text-xs font-black uppercase tracking-wider ${
+                    className={`text-xs font-semibold tracking-normalr ${
                       selected ? 'text-primary' : 'text-muted dark:text-muted-dark'
                     }`}
                   >
@@ -276,18 +290,23 @@ export default function ProfileScreen({ navigation }: any) {
         </Card>
 
         {/* App Updates Section */}
-        <Text className="text-lg font-black text-text dark:text-text-dark mb-4">
+        <Text className="text-lg font-semibold text-text dark:text-text-dark mb-4">
           App Update
         </Text>
         <Card className="mb-6 p-5">
           <View className="flex-row justify-between items-center mb-4">
             <View className="flex-1 mr-4">
-              <Text className="text-xs text-muted dark:text-muted-dark font-bold uppercase tracking-wider">
+              <Text className="text-xs text-muted dark:text-muted-dark font-bold tracking-normalr">
                 Current Version / Channel
               </Text>
-              <Text className="text-sm font-black text-text dark:text-text-dark mt-1">
-                1.0.0 ({currentChannel})
+              <Text className="text-sm font-semibold text-text dark:text-text-dark mt-1">
+                1.0.0 · {channelLabel}
               </Text>
+              {channelHint ? (
+                <Text className="text-[10px] text-muted dark:text-muted-dark mt-1 leading-relaxed">
+                  {channelHint}
+                </Text>
+              ) : null}
               {currentUpdateId ? (
                 <Text className="text-[10px] text-muted dark:text-muted-dark mt-0.5">
                   ID: {currentUpdateId}
@@ -299,7 +318,7 @@ export default function ProfileScreen({ navigation }: any) {
               updateStatus === 'Up to Date' ? 'bg-emerald-500/10 border border-emerald-500/25' :
               'bg-border/20 border border-border dark:border-border-dark'
             }`}>
-              <Text className={`text-[10px] font-black uppercase tracking-wider ${
+              <Text className={`text-[10px] font-semibold tracking-normalr ${
                 updateStatus === 'Available' ? 'text-primary' :
                 updateStatus === 'Up to Date' ? 'text-emerald-500' :
                 'text-muted dark:text-muted-dark'
@@ -318,7 +337,15 @@ export default function ProfileScreen({ navigation }: any) {
           )}
 
           <Button
-            label={checking ? "Checking..." : (isUpdateAvailable ? "Download & Install Update" : "Check for Updates")}
+            label={
+              checking
+                ? 'Checking...'
+                : updating
+                  ? 'Installing...'
+                  : isUpdateAvailable
+                    ? 'Download & Install Update'
+                    : 'Check for Updates'
+            }
             onPress={handleCheckForUpdates}
             loading={checking || updating}
             variant={isUpdateAvailable ? "primary" : "secondary"}
@@ -326,12 +353,12 @@ export default function ProfileScreen({ navigation }: any) {
         </Card>
 
         {/* Danger Zone */}
-        <Text className="text-lg font-black text-text dark:text-text-dark mb-4">
+        <Text className="text-lg font-semibold text-text dark:text-text-dark mb-4">
           Session
         </Text>
 
         <Card className="p-5 border-red-500/10 bg-red-500/5 dark:bg-red-500/5 mb-4">
-          <Text className="text-xs text-red-500 dark:text-red-400 font-bold uppercase tracking-wider mb-2">
+          <Text className="text-xs text-red-500 dark:text-red-400 font-bold tracking-normalr mb-2">
             Exit Account
           </Text>
           <Text className="text-xs text-muted dark:text-muted-dark leading-relaxed mb-4">
@@ -344,7 +371,7 @@ export default function ProfileScreen({ navigation }: any) {
           >
             <View className="flex-row items-center justify-center">
               <Ionicons name="log-out" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
-              <Text className="text-sm font-black text-white uppercase tracking-wider">
+              <Text className="text-sm font-semibold text-white tracking-normalr">
                 Log Out
               </Text>
             </View>

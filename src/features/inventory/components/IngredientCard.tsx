@@ -75,13 +75,13 @@ function IngredientCard({
 
           <View className="flex-1">
             <Text
-              className="text-sm font-black text-text dark:text-text-dark leading-tight"
+              className="text-sm font-semibold text-text dark:text-text-dark leading-tight"
               numberOfLines={2}
             >
               {name}
             </Text>
             <View className={`self-start px-1.5 py-0.5 rounded-md mt-1 ${bgClass}`}>
-              <Text className={`text-[8px] font-black uppercase tracking-wider ${textClass}`}>
+              <Text className={`text-[8px] font-semibold tracking-normalr ${textClass}`}>
                 {type}
               </Text>
             </View>
@@ -95,18 +95,18 @@ function IngredientCard({
             activeOpacity={0.8}
             className="bg-border/10 dark:bg-border-dark/10 border border-border/20 dark:border-border-dark/20 rounded-xl px-3 py-1.5 items-center w-full"
           >
-            <Text className="text-[7px] text-muted dark:text-muted-dark font-bold uppercase tracking-wider mb-0.5">
+            <Text className="text-[7px] text-muted dark:text-muted-dark font-bold tracking-normalr mb-0.5">
               Stock
             </Text>
             <View className="flex-row items-center" style={{ gap: 3 }}>
               <Text
-                className={`text-sm font-black ${stockTheme?.badgeTextClass ?? 'text-text dark:text-text-dark'}`}
+                className={`text-sm font-semibold ${stockTheme?.badgeTextClass ?? 'text-text dark:text-text-dark'}`}
               >
                 {formattedStock}
               </Text>
               {stockTheme ? (
                 <View className={`px-1 py-0.5 rounded ${stockTheme.badgeBgClass}`}>
-                  <Text className={`text-[6px] font-black uppercase ${stockTheme.badgeTextClass}`}>
+                  <Text className={`text-[6px] font-semibold uppercase ${stockTheme.badgeTextClass}`}>
                     {stockTheme.label}
                   </Text>
                 </View>
@@ -115,7 +115,7 @@ function IngredientCard({
           </TouchableOpacity>
 
           <Text
-            className={`text-[10px] font-black mt-1.5 text-center ${
+            className={`text-[10px] font-semibold mt-1.5 text-center ${
               formattedPrice.hasPrice ? 'text-primary' : 'text-muted dark:text-muted-dark'
             }`}
           >

@@ -145,7 +145,7 @@ export default React.memo(function IngredientGridCard({
       }}
     >
       <Text
-        className="text-[11px] font-black text-text dark:text-text-dark text-center"
+        className="text-[11px] font-semibold text-text dark:text-text-dark text-center"
         numberOfLines={2}
         ellipsizeMode="tail"
         style={{ lineHeight: 13, maxHeight: 26 }}
@@ -153,7 +153,7 @@ export default React.memo(function IngredientGridCard({
         {name}
       </Text>
       <Text
-        className={`text-[9px] font-black text-center mt-0.5 ${stockTheme?.badgeTextClass ?? 'text-muted dark:text-muted-dark'}`}
+        className={`text-[9px] font-semibold text-center mt-0.5 ${stockTheme?.badgeTextClass ?? 'text-muted dark:text-muted-dark'}`}
         numberOfLines={1}
         ellipsizeMode="tail"
         style={{ lineHeight: 11 }}
@@ -161,7 +161,7 @@ export default React.memo(function IngredientGridCard({
         {formattedStock}
       </Text>
       <Text
-        className={`text-[9px] font-black text-center mt-0.5 ${
+        className={`text-[9px] font-semibold text-center mt-0.5 ${
           priceDisplay.hasPrice ? 'text-primary' : 'text-muted dark:text-muted-dark'
         }`}
         numberOfLines={1}

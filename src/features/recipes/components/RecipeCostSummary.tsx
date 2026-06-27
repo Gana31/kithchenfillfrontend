@@ -17,7 +17,7 @@ export default function RecipeCostSummary({
 }: RecipeCostSummaryProps) {
   return (
     <View className="rounded-2xl bg-primary/10 border border-primary/25 p-4 mb-4">
-      <Text className="text-xs font-black text-primary uppercase tracking-widest mb-3">
+      <Text className="text-xs font-semibold text-primary tracking-normal mb-3">
         Recipe cost preview
       </Text>
 
@@ -28,7 +28,7 @@ export default function RecipeCostSummary({
               <Text className="text-xs font-bold text-text dark:text-text-dark flex-1 pr-2" numberOfLines={1}>
                 {line.name}
               </Text>
-              <Text className="text-xs font-black text-text dark:text-text-dark">{formatInr(line.lineCost)}</Text>
+              <Text className="text-xs font-semibold text-text dark:text-text-dark">{formatInr(line.lineCost)}</Text>
             </View>
           ))}
         </View>
@@ -61,10 +61,10 @@ export default function RecipeCostSummary({
 function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
   return (
     <View className="flex-row justify-between items-center">
-      <Text className={`text-xs ${bold ? 'font-black text-text dark:text-text-dark' : 'font-bold text-muted dark:text-muted-dark'}`}>
+      <Text className={`text-xs ${bold ? 'font-semibold text-text dark:text-text-dark' : 'font-bold text-muted dark:text-muted-dark'}`}>
         {label}
       </Text>
-      <Text className={`text-xs ${bold ? 'font-black text-primary text-base' : 'font-black text-text dark:text-text-dark'}`}>
+      <Text className={`text-xs ${bold ? 'font-semibold text-primary text-base' : 'font-semibold text-text dark:text-text-dark'}`}>
         {value}
       </Text>
     </View>

@@ -133,7 +133,7 @@ export default function OnboardingScreen() {
         style={{ position: 'absolute', top: Math.max(insets.top, 16), left: 0, right: 0, zIndex: 10 }}
         className="flex-row justify-between items-center px-6 py-2"
       >
-        <Text className="text-lg font-black text-text dark:text-text-dark tracking-tight">
+        <Text className="text-lg font-semibold text-text dark:text-text-dark tracking-tight">
           Kitchen<Text className="text-primary">Fill</Text>
           <Text className="text-primary text-xl">.</Text>
         </Text>
@@ -173,7 +173,7 @@ export default function OnboardingScreen() {
               </View>
 
               {/* Slide Title */}
-              <Text className="text-2xl md:text-3xl font-black text-text dark:text-text-dark text-center tracking-tight leading-tight mb-4">
+              <Text className="text-2xl md:text-3xl font-semibold text-text dark:text-text-dark text-center tracking-tight leading-tight mb-4">
                 {slide.title}{' '}
                 <Text className="text-primary">{slide.highlight}</Text>
               </Text>
@@ -193,12 +193,12 @@ export default function OnboardingScreen() {
         className="px-8 items-center w-full"
       >
         {/* Step Indicator text */}
-        <Text className="text-xs text-muted dark:text-muted-dark font-extrabold tracking-widest uppercase mb-1">
+        <Text className="text-xs text-muted dark:text-muted-dark font-semibold tracking-wide uppercase mb-1">
           Step {currentSlideIndex + 1} of {slides.length}
         </Text>
 
         {/* Dynamic navigation gesture hint */}
-        <Text className="text-[10px] text-primary font-black tracking-widest uppercase mb-5">
+        <Text className="text-[10px] text-primary font-semibold tracking-wide uppercase mb-5">
           {currentSlideIndex === 0 && "← Swipe left to continue"}
           {currentSlideIndex === 1 && "← Swipe left or right →"}
           {currentSlideIndex === 2 && "Swipe right to go back →"}

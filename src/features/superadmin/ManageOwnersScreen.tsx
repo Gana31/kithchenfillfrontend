@@ -19,6 +19,8 @@ import { useThemeColors } from '../../hooks/useThemeColors';
 import SearchBar from '../../components/SearchBar';
 import OwnerCard from './components/OwnerCard';
 import AddOwnerModal from './components/AddOwnerModal';
+import { openOwnerWorkspace } from './superadminNavigation';
+import { TenantData } from './superadminApi';
 import { useAppDispatch } from '../../store/store';
 import { showToast } from '../../store/toastSlice';
 
@@ -60,6 +62,10 @@ export default function ManageOwnersScreen({ navigation }: any) {
       ),
     });
   }, [navigation, primary]);
+
+  const handleManageWorkspace = (tenant: TenantData) => {
+    openOwnerWorkspace(navigation, tenant, dispatch);
+  };
 
   // Handle tenant status toggle
   const handleToggleStatus = async (id: string, currentStatus: 'active' | 'deactivated') => {
@@ -110,7 +116,7 @@ export default function ManageOwnersScreen({ navigation }: any) {
         {isLoading ? (
           <View className="flex-1 justify-center items-center">
             <ActivityIndicator size="large" color={primary} />
-            <Text className="text-xs text-muted mt-3 font-semibold uppercase tracking-widest">
+            <Text className="text-xs text-muted mt-3 font-semibold tracking-normal">
               Loading accounts...
             </Text>
           </View>
@@ -118,7 +124,7 @@ export default function ManageOwnersScreen({ navigation }: any) {
           <View className="flex-1 justify-center items-center">
             <Text className="text-red-500 text-xs font-bold mb-4">Error fetching tenant list</Text>
             <TouchableOpacity onPress={refetch} className="px-4 py-2 rounded-xl bg-card border border-border">
-              <Text className="text-primary text-xs font-black uppercase">Retry</Text>
+              <Text className="text-primary text-xs font-semibold uppercase">Retry</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -146,6 +152,7 @@ export default function ManageOwnersScreen({ navigation }: any) {
                     key={tenant._id}
                     tenant={tenant}
                     onToggleStatus={handleToggleStatus}
+                    onManageWorkspace={handleManageWorkspace}
                     isToggling={isToggling}
                   />
                 ))}

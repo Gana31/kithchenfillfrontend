@@ -100,10 +100,10 @@ function AnimatedTabItem({
           style={{
             color: isFocused ? activeColor : inactiveColor,
             fontSize: 9,
-            fontWeight: isFocused ? '900' : '600',
+            fontWeight: '600',
             marginTop: 3,
-            textTransform: 'uppercase',
-            letterSpacing: 0.6,
+            textTransform: 'capitalize',
+            letterSpacing: 0.3,
           }}
         >
           {label}

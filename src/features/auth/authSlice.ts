@@ -20,6 +20,10 @@ export interface AuthState {
   refreshTokenExpiry: number | null; // Timestamp (ms) when refresh token expires
   isAuthenticated: boolean;
   loading: boolean;
+  /** Superadmin viewing/managing an owner workspace */
+  impersonatedTenantId: string | null;
+  impersonatedBusinessName: string | null;
+  impersonatedOwnerEmail: string | null;
 }
 
 const initialState: AuthState = {
@@ -31,6 +35,9 @@ const initialState: AuthState = {
   refreshTokenExpiry: null,
   isAuthenticated: false,
   loading: true,
+  impersonatedTenantId: null,
+  impersonatedBusinessName: null,
+  impersonatedOwnerEmail: null,
 };
 
 // Async thunk to load the saved auth state from AsyncStorage on app start
@@ -230,6 +237,22 @@ const authSlice = createSlice({
       state.tokenExpiry = null;
       state.refreshTokenExpiry = null;
       state.isAuthenticated = false;
+      state.impersonatedTenantId = null;
+      state.impersonatedBusinessName = null;
+      state.impersonatedOwnerEmail = null;
+    },
+    startImpersonation: (
+      state,
+      action: PayloadAction<{ tenantId: string; businessName: string; ownerEmail?: string | null }>
+    ) => {
+      state.impersonatedTenantId = action.payload.tenantId;
+      state.impersonatedBusinessName = action.payload.businessName;
+      state.impersonatedOwnerEmail = action.payload.ownerEmail ?? null;
+    },
+    stopImpersonation: (state) => {
+      state.impersonatedTenantId = null;
+      state.impersonatedBusinessName = null;
+      state.impersonatedOwnerEmail = null;
     },
   },
   extraReducers: (builder) => {
@@ -285,16 +308,24 @@ const authSlice = createSlice({
         state.tokenExpiry = null;
         state.refreshTokenExpiry = null;
         state.isAuthenticated = false;
+        state.impersonatedTenantId = null;
+        state.impersonatedBusinessName = null;
+        state.impersonatedOwnerEmail = null;
       });
   },
 });
 
-export const { setCredentials, logout } = authSlice.actions;
+export const { setCredentials, logout, startImpersonation, stopImpersonation } = authSlice.actions;
 
 export default authSlice.reducer;
 
 export const selectCurrentUser = (state: { auth: AuthState }) => state.auth.user;
 export const selectCurrentToken = (state: { auth: AuthState }) => state.auth.token;
-export const selectActiveTenantId = (state: { auth: AuthState }) => state.auth.tenantId;
+export const selectActiveTenantId = (state: { auth: AuthState }) =>
+  state.auth.impersonatedTenantId ?? state.auth.tenantId;
+export const selectIsImpersonating = (state: { auth: AuthState }) =>
+  Boolean(state.auth.impersonatedTenantId);
+export const selectImpersonatedBusinessName = (state: { auth: AuthState }) =>
+  state.auth.impersonatedBusinessName;
 export const selectIsAuthenticated = (state: { auth: AuthState }) => state.auth.isAuthenticated;
 export const selectAuthLoading = (state: { auth: AuthState }) => state.auth.loading;

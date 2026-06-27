@@ -244,7 +244,7 @@ export default function AddRecipeScreen() {
           placeholder="5.5"
         />
 
-        <Text className="text-sm font-black text-text dark:text-text-dark mt-2 mb-3">Ingredients</Text>
+        <Text className="text-sm font-semibold text-text dark:text-text-dark mt-2 mb-3">Ingredients</Text>
 
         {lines.map((row, index) => {
           if (row.kind === 'stock') {

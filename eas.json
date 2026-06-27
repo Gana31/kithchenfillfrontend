@@ -26,6 +26,16 @@
       "env": {
         "EXPO_USE_MINIFY": "1"
       }
+    },
+    "production-apk": {
+      "distribution": "internal",
+      "channel": "production",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_USE_MINIFY": "1"
+      }
     }
   },
   "submit": {

@@ -64,11 +64,11 @@ export default function SplashScreen({ navigation }: { navigation?: any }) {
           className="w-48 h-48 rounded-3xl"
           resizeMode="contain"
         />
-        <Text className="text-4xl font-black text-text dark:text-text-dark mt-6 tracking-tighter">
+        <Text className="text-4xl font-semibold text-text dark:text-text-dark mt-6 tracking-tight">
           Kitchen<Text className="text-primary">Fill</Text>
           <Text className="text-primary text-5xl">.</Text>
         </Text>
-        <Text className="text-xs text-muted dark:text-muted-dark mt-2 tracking-widest uppercase font-bold">
+        <Text className="text-sm text-muted dark:text-muted-dark mt-2 font-medium tracking-normal">
           Smart Cloud Kitchen Inventory
         </Text>
       </View>
@@ -76,7 +76,7 @@ export default function SplashScreen({ navigation }: { navigation?: any }) {
       {/* Loading Indicator */}
       <View className="absolute bottom-16 items-center">
         <ActivityIndicator size="large" color={COLORS.primary} />
-        <Text className="text-muted dark:text-muted-dark text-xs mt-3 font-semibold tracking-widest uppercase">
+        <Text className="text-muted dark:text-muted-dark text-xs mt-3 font-semibold tracking-wide uppercase">
           Initializing Workspace
         </Text>
       </View>

@@ -1,125 +1,59 @@
 import 'react-native-gesture-handler';
 import React, { useEffect } from 'react';
-import { useColorScheme, Appearance, View, Text, TouchableOpacity } from 'react-native';
+import { useColorScheme, Appearance, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Provider } from 'react-redux';
 import { store, useAppDispatch, useAppSelector } from './src/store/store';
 import SplashScreen from './src/features/auth/SplashScreen';
 import OnboardingScreen from './src/features/auth/OnboardingScreen';
 import LoginScreen from './src/features/auth/LoginScreen';
 import RegisterScreen from './src/features/auth/RegisterScreen';
-import DashboardScreen from './src/features/dashboard/DashboardScreen';
-import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { loadTheme, setSystemIsDark, selectIsDark } from './src/store/themeSlice';
-import { selectIsAuthenticated, loadStoredAuth, selectAuthLoading, selectCurrentUser, logoutUser } from './src/features/auth/authSlice';
+import {
+  selectIsAuthenticated,
+  loadStoredAuth,
+  selectAuthLoading,
+  selectCurrentUser,
+} from './src/features/auth/authSlice';
 import { DEV_THEME_OVERRIDE } from './src/config/constants';
-import { createBottomTabNavigator, BottomTabHeaderProps } from '@react-navigation/bottom-tabs';
-import { useNavigationState } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
+import { useAppFonts } from './src/config/fonts';
 import CustomTabBar from './src/components/CustomTabBar';
 import SuperadminDashboardScreen from './src/features/superadmin/SuperadminDashboardScreen';
 import ManageOwnersScreen from './src/features/superadmin/ManageOwnersScreen';
-import InventoryScreen from './src/features/inventory/InventoryScreen';
-import RecipeBuilderScreen from './src/features/recipes/RecipeBuilderScreen';
-import AddRecipeScreen from './src/features/recipes/components/AddRecipeScreen';
-import CounterScreen from './src/features/sales/CounterScreen';
-import BlobBackground from './src/components/BlobBackground';
+import OwnerWorkspaceScreen from './src/features/superadmin/OwnerWorkspaceScreen';
 import ProfileScreen from './src/features/profile/ProfileScreen';
 import Toast from './src/components/Toast';
-import { showToast } from './src/store/toastSlice';
 import { useSystemChrome } from './src/hooks/useSystemChrome';
-import { OwnerRootStackParamList } from './src/navigation/ownerNavigation.types';
-import './global.css'; // Import compiled TailwindCSS global styles
+import OwnerWorkspaceNavigator from './src/navigation/OwnerWorkspaceNavigator';
+import CustomAppHeader from './src/navigation/CustomAppHeader';
+import { SuperadminRootStackParamList } from './src/navigation/superadminNavigation.types';
+import AppErrorBoundary from './src/components/AppErrorBoundary';
+import BlobBackground from './src/components/BlobBackground';
+import './global.css';
 
 const Stack = createNativeStackNavigator();
-const OwnerStack = createNativeStackNavigator<OwnerRootStackParamList>();
+const SuperadminStack = createNativeStackNavigator<SuperadminRootStackParamList>();
 const Tab = createBottomTabNavigator();
 
-function CustomHeader({ options, route, navigation }: BottomTabHeaderProps) {
-  const insets = useSafeAreaInsets();
-  const user = useAppSelector(selectCurrentUser);
-
-  const getHeaderInfo = () => {
-    switch (route.name) {
-      case 'Dashboard':
-        if (user?.role === 'Superadmin') {
-          return {
-            title: 'SaaS',
-            titleHighlight: 'Admin',
-            subtitle: 'Platform Overview',
-          };
-        } else {
-          return {
-            title: 'Kitchen',
-            titleHighlight: 'Fill',
-            subtitle: user?.email || 'owner@kitchen.fill',
-          };
-        }
-      case 'Owners':
-        return {
-          title: 'Kitchen',
-          titleHighlight: 'Owners',
-          subtitle: 'Manage Tenants',
-        };
-      case 'Inventory':
-        return {
-          title: 'Raw',
-          titleHighlight: 'Stock',
-          subtitle: 'Live Stock Levels',
-        };
-      case 'Recipes':
-        return {
-          title: 'My',
-          titleHighlight: 'Recipes',
-          subtitle: 'Manage Batches',
-        };
-      case 'Counter':
-        return {
-          title: 'Order',
-          titleHighlight: 'Counter',
-          subtitle: 'Log Local Sales',
-        };
-      case 'Profile':
-        return {
-          title: 'User',
-          titleHighlight: 'Profile',
-          subtitle: 'User Settings',
-        };
-      default:
-        return {
-          title: 'Kitchen',
-          titleHighlight: 'Fill',
-          subtitle: 'Management',
-        };
-    }
-  };
-
-  const { title, titleHighlight, subtitle } = getHeaderInfo();
-
+function SuperadminTabNavigator() {
   return (
-    <View style={{ overflow: 'hidden', borderBottomWidth: 0, backgroundColor: 'transparent', paddingTop: insets.top }}>
-      <View className="flex-row justify-between items-center px-6 py-4">
-        <View className="flex-row items-center flex-1 mr-2" style={{ gap: 10 }}>
-          <View className="flex-shrink">
-            <Text className="text-2xl font-black text-text dark:text-text-dark tracking-tight">
-              {title}<Text className="text-primary">{titleHighlight}</Text>
-              <Text className="text-primary text-2xl">.</Text>
-            </Text>
-            <Text className="text-xs text-muted dark:text-muted-dark font-bold mt-0.5 uppercase tracking-widest">
-              {subtitle}
-            </Text>
-          </View>
-          {options.headerLeft?.({
-            canGoBack: typeof navigation.canGoBack === 'function' ? navigation.canGoBack() : false,
-          })}
-        </View>
-        <View className="flex-row items-center flex-shrink-0">
-          {options.headerRight?.({ canGoBack: typeof navigation.canGoBack === 'function' ? navigation.canGoBack() : false })}
-        </View>
-      </View>
-    </View>
+    <Tab.Navigator
+      tabBar={(props) => <CustomTabBar {...props} />}
+      screenOptions={{
+        headerShown: true,
+        header: (props) => <CustomAppHeader {...props} />,
+        animation: 'shift',
+        sceneStyle: { flex: 1, backgroundColor: 'transparent' },
+      }}
+    >
+      <Tab.Screen name="Dashboard" component={SuperadminDashboardScreen} />
+      <Tab.Screen name="Owners" component={ManageOwnersScreen} />
+      <Tab.Screen name="Profile" component={ProfileScreen} />
+    </Tab.Navigator>
   );
 }
 
@@ -129,42 +63,12 @@ function SuperadminNavigator() {
     <View style={{ flex: 1, backgroundColor: isDark ? '#09090A' : '#FFFFFF' }}>
       <BlobBackground />
       <View style={{ flex: 1, zIndex: 1, elevation: 1 }}>
-        <Tab.Navigator
-          tabBar={(props) => <CustomTabBar {...props} />}
-          screenOptions={{
-            headerShown: true,
-            header: (props) => <CustomHeader {...props} />,
-            animation: 'shift',
-            sceneStyle: { flex: 1, backgroundColor: 'transparent' },
-          }}
-        >
-          <Tab.Screen name="Dashboard" component={SuperadminDashboardScreen} />
-          <Tab.Screen name="Owners" component={ManageOwnersScreen} />
-          <Tab.Screen name="Profile" component={ProfileScreen} />
-        </Tab.Navigator>
+        <SuperadminStack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
+          <SuperadminStack.Screen name="MainTabs" component={SuperadminTabNavigator} />
+          <SuperadminStack.Screen name="OwnerWorkspace" component={OwnerWorkspaceScreen} />
+        </SuperadminStack.Navigator>
       </View>
     </View>
-  );
-}
-
-function OwnerTabNavigator() {
-  const isDark = useAppSelector(selectIsDark);
-  return (
-    <Tab.Navigator
-      tabBar={(props) => <CustomTabBar {...props} />}
-      screenOptions={{
-        headerShown: true,
-        header: (props) => <CustomHeader {...props} />,
-        animation: 'shift',
-        sceneStyle: { flex: 1, backgroundColor: 'transparent' },
-      }}
-    >
-      <Tab.Screen name="Dashboard" component={DashboardScreen} />
-      <Tab.Screen name="Inventory" component={InventoryScreen} />
-      <Tab.Screen name="Recipes" component={RecipeBuilderScreen} />
-      <Tab.Screen name="Counter" component={CounterScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
-    </Tab.Navigator>
   );
 }
 
@@ -174,10 +78,7 @@ function OwnerNavigator() {
     <View style={{ flex: 1, backgroundColor: isDark ? '#09090A' : '#FFFFFF' }}>
       <BlobBackground />
       <View style={{ flex: 1, zIndex: 1, elevation: 1 }}>
-        <OwnerStack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
-          <OwnerStack.Screen name="MainTabs" component={OwnerTabNavigator} />
-          <OwnerStack.Screen name="AddRecipe" component={AddRecipeScreen} />
-        </OwnerStack.Navigator>
+        <OwnerWorkspaceNavigator />
       </View>
     </View>
   );
@@ -185,77 +86,35 @@ function OwnerNavigator() {
 
 function RootApp() {
   const dispatch = useAppDispatch();
-  
-  // 1. Listen for system color scheme changes at runtime
+  const { loaded: fontsLoaded } = useAppFonts();
   const systemColorScheme = useColorScheme();
-  
-  // 2. Select the current theme preference from Redux
   const themePreference = useAppSelector((state) => state.theme.theme);
-  
-  // 3. Select isDark computed preference (respects manual select & dev override)
   const isDark = useAppSelector(selectIsDark);
   useSystemChrome(isDark);
-
-  // 4. Select authentication status & user details
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const currentUser = useAppSelector(selectCurrentUser);
-  
-  // 5. Select authentication loading state
   const isAuthLoading = useAppSelector(selectAuthLoading);
 
-  // Safely check for OTA updates — this is a no-op in Expo Go dev mode
-  useEffect(() => {
-    const checkOtaUpdate = async () => {
-      try {
-        // This will throw in Expo Go; caught silently so app doesn't crash
-        const { isAvailable } = await (await import('expo-updates')).checkForUpdateAsync();
-        if (isAvailable) {
-          const { isNew } = await (await import('expo-updates')).fetchUpdateAsync();
-          if (isNew) {
-            dispatch(
-              showToast({
-                title: 'Update Ready',
-                message: 'A new version is ready. Restarting app to apply...',
-                type: 'info',
-              })
-            );
-            setTimeout(async () => {
-              try {
-                await (await import('expo-updates')).reloadAsync();
-              } catch (_) {}
-            }, 3000);
-          }
-        }
-      } catch (_) {
-        // Silently ignore: expo-updates not available in Expo Go
-      }
-    };
-    checkOtaUpdate();
-  }, [dispatch]);
-
-  // Load saved theme and auth session from storage on mount
   useEffect(() => {
     dispatch(loadTheme());
     dispatch(loadStoredAuth());
   }, [dispatch]);
 
-  // Keep Redux updated when system theme changes
   useEffect(() => {
     dispatch(setSystemIsDark(systemColorScheme === 'dark'));
   }, [systemColorScheme, dispatch]);
 
-  // Synchronize React Native Appearance with Redux theme selection (supporting dev override)
   useEffect(() => {
     if (DEV_THEME_OVERRIDE) {
-      Appearance.setColorScheme(DEV_THEME_OVERRIDE); // Force development override
+      Appearance.setColorScheme(DEV_THEME_OVERRIDE);
     } else if (themePreference === 'system') {
-      Appearance.setColorScheme(null); // Reset override, follow system
+      Appearance.setColorScheme(null);
     } else {
-      Appearance.setColorScheme(themePreference); // Force manual preference ('dark' or 'light')
+      Appearance.setColorScheme(themePreference);
     }
   }, [themePreference]);
 
-  if (isAuthLoading) {
+  if (isAuthLoading || !fontsLoaded) {
     return <SplashScreen />;
   }
 
@@ -272,37 +131,37 @@ function RootApp() {
       <SafeAreaProvider>
         <View className={isDark ? 'dark flex-1' : 'flex-1'}>
           <NavigationContainer theme={navTheme}>
-          <Stack.Navigator
-            screenOptions={{
-              headerShown: false,
-              animation: 'slide_from_right',
-            }}
-          >
-            {isAuthenticated ? (
-              currentUser?.role === 'Superadmin' ? (
-                <Stack.Screen name="SuperadminFlow" component={SuperadminNavigator} />
+            <Stack.Navigator
+              screenOptions={{
+                headerShown: false,
+                animation: 'slide_from_right',
+              }}
+            >
+              {isAuthenticated ? (
+                currentUser?.role === 'Superadmin' ? (
+                  <Stack.Screen name="SuperadminFlow" component={SuperadminNavigator} />
+                ) : (
+                  <Stack.Screen name="OwnerFlow" component={OwnerNavigator} />
+                )
               ) : (
-                <Stack.Screen name="OwnerFlow" component={OwnerNavigator} />
-              )
-            ) : (
-              <>
-                <Stack.Screen 
-                  name="Splash" 
-                  component={SplashScreen} 
-                  options={{ gestureEnabled: false }}
-                />
-                <Stack.Screen 
-                  name="Onboarding" 
-                  component={OnboardingScreen} 
-                  options={{ gestureEnabled: false }}
-                />
-                <Stack.Screen name="Login" component={LoginScreen} />
-                <Stack.Screen name="Register" component={RegisterScreen} />
-              </>
-            )}
-          </Stack.Navigator>
-        </NavigationContainer>
-        <Toast />
+                <>
+                  <Stack.Screen
+                    name="Splash"
+                    component={SplashScreen}
+                    options={{ gestureEnabled: false }}
+                  />
+                  <Stack.Screen
+                    name="Onboarding"
+                    component={OnboardingScreen}
+                    options={{ gestureEnabled: false }}
+                  />
+                  <Stack.Screen name="Login" component={LoginScreen} />
+                  <Stack.Screen name="Register" component={RegisterScreen} />
+                </>
+              )}
+            </Stack.Navigator>
+          </NavigationContainer>
+          <Toast />
         </View>
       </SafeAreaProvider>
     </GestureHandlerRootView>
@@ -312,7 +171,9 @@ function RootApp() {
 export default function App() {
   return (
     <Provider store={store}>
-      <RootApp />
+      <AppErrorBoundary>
+        <RootApp />
+      </AppErrorBoundary>
     </Provider>
   );
 }

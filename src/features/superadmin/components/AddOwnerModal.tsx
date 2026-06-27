@@ -90,7 +90,7 @@ export default function AddOwnerModal({ visible, onClose }: AddOwnerModalProps) 
 
             {/* Modal Header */}
             <View className="flex-row justify-between items-center mb-6">
-              <Text className="text-xl font-black text-text dark:text-text-dark">
+              <Text className="text-xl font-semibold text-text dark:text-text-dark">
                 Create Owner Workspace
               </Text>
               <TouchableOpacity 

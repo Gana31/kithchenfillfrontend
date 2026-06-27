@@ -117,10 +117,10 @@ export default function AdjustStockModal({ visible, onClose, ingredient }: Adjus
             {/* Modal Header */}
             <View className="flex-row justify-between items-center mb-4">
               <View className="flex-1 mr-4">
-                <Text className="text-xs font-bold text-primary uppercase tracking-widest">
+                <Text className="text-xs font-bold text-primary tracking-normal">
                   Quick Adjust Stock
                 </Text>
-                <Text className="text-xl font-black text-text dark:text-text-dark leading-tight mt-0.5" numberOfLines={1}>
+                <Text className="text-xl font-semibold text-text dark:text-text-dark leading-tight mt-0.5" numberOfLines={1}>
                   {ingredient.name}
                 </Text>
               </View>
@@ -134,10 +134,10 @@ export default function AdjustStockModal({ visible, onClose, ingredient }: Adjus
 
             {/* Current Stock Banner */}
             <View className="mb-5 bg-border/10 border border-border dark:border-border-dark p-4 rounded-2xl flex-row justify-between items-center">
-              <Text className="text-xs font-bold text-muted dark:text-muted-dark uppercase tracking-wider">
+              <Text className="text-xs font-bold text-muted dark:text-muted-dark tracking-normalr">
                 Current Stock Level:
               </Text>
-              <Text className="text-lg font-black text-text dark:text-text-dark">
+              <Text className="text-lg font-semibold text-text dark:text-text-dark">
                 {formattedStock}
               </Text>
             </View>
@@ -167,7 +167,7 @@ export default function AdjustStockModal({ visible, onClose, ingredient }: Adjus
                 className="flex-1 py-4 rounded-2xl bg-red-500 items-center justify-center flex-row shadow-md active:bg-red-600"
               >
                 <Ionicons name="remove-circle-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
-                <Text className="text-sm font-black text-white uppercase tracking-wider">
+                <Text className="text-sm font-semibold text-white tracking-normalr">
                   Deduct
                 </Text>
               </TouchableOpacity>
@@ -180,7 +180,7 @@ export default function AdjustStockModal({ visible, onClose, ingredient }: Adjus
                 className="flex-1 py-4 rounded-2xl bg-emerald-500 items-center justify-center flex-row shadow-md active:bg-emerald-600"
               >
                 <Ionicons name="add-circle-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
-                <Text className="text-sm font-black text-white uppercase tracking-wider">
+                <Text className="text-sm font-semibold text-white tracking-normalr">
                   Add Stock
                 </Text>
               </TouchableOpacity>

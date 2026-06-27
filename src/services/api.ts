@@ -9,6 +9,7 @@ interface StateWithAuth {
     token: string | null;
     refreshToken: string | null;
     tenantId: string | null;
+    impersonatedTenantId: string | null;
     tokenExpiry: number | null;
     refreshTokenExpiry: number | null;
     user: any;
@@ -20,7 +21,7 @@ const baseQuery = fetchBaseQuery({
   prepareHeaders: (headers, { getState }) => {
     const state = getState() as StateWithAuth;
     const token = state.auth?.token;
-    const tenantId = state.auth?.tenantId;
+    const tenantId = state.auth?.impersonatedTenantId ?? state.auth?.tenantId;
 
     if (token) {
       headers.set('authorization', `Bearer ${token}`);

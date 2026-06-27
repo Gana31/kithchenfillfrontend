@@ -73,11 +73,11 @@ export default function LoginScreen() {
                 className="w-20 h-20 rounded-2xl"
                 resizeMode="contain"
               />
-              <Text className="text-3xl font-black text-text dark:text-text-dark mt-4 tracking-tighter">
+              <Text className="text-3xl font-semibold text-text dark:text-text-dark mt-4 tracking-tight">
                 Kitchen<Text className="text-primary">Fill</Text>
                 <Text className="text-primary text-3xl">.</Text>
               </Text>
-              <Text className="text-sm font-bold text-muted dark:text-muted-dark mt-1 uppercase tracking-widest">
+              <Text className="text-sm font-bold text-muted dark:text-muted-dark mt-1 tracking-normal">
                 Welcome Back
               </Text>
               <Text className="text-xs text-muted dark:text-muted-dark mt-2.5 text-center font-semibold max-w-xs leading-relaxed">
@@ -87,7 +87,7 @@ export default function LoginScreen() {
 
             {/* Reusable Card Component with balanced padding */}
             <Card className="p-7">
-              <Text className="text-lg font-black text-text dark:text-text-dark mb-5">Sign In</Text>
+              <Text className="text-lg font-semibold text-text dark:text-text-dark mb-5">Sign In</Text>
 
               {error ? (
                 <View className="mb-4 bg-red-500/10 border border-red-500/20 p-3.5 rounded-xl">
@@ -130,7 +130,7 @@ export default function LoginScreen() {
                 onPress={() => navigation.navigate('Register')}
                 activeOpacity={0.7}
               >
-                <Text className="text-primary text-xs font-black tracking-wider uppercase">
+                <Text className="text-primary text-xs font-semibold tracking-wider uppercase">
                   Sign Up
                 </Text>
               </TouchableOpacity>
@@ -139,7 +139,7 @@ export default function LoginScreen() {
             {/* Help Links */}
             <View className="mt-4 items-center">
               <TouchableOpacity activeOpacity={0.7}>
-                <Text className="text-muted/60 dark:text-muted-dark/50 text-[10px] font-bold tracking-widest uppercase">
+                <Text className="text-muted/60 dark:text-muted-dark/50 text-[10px] font-bold tracking-wide uppercase">
                   Forgot password? Contact admin
                 </Text>
               </TouchableOpacity>

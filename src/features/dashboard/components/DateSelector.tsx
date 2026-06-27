@@ -24,15 +24,15 @@ export default function DateSelector({ selectedDate, onChange }: DateSelectorPro
       </TouchableOpacity>
 
       <View className="items-center flex-1 mx-3">
-        <Text className="text-xs font-bold text-muted dark:text-muted-dark uppercase tracking-widest">
+        <Text className="text-xs font-bold text-muted dark:text-muted-dark tracking-normal">
           {isToday ? 'Today' : 'Selected day'}
         </Text>
-        <Text className="text-sm font-black text-text dark:text-text-dark mt-0.5">
+        <Text className="text-sm font-semibold text-text dark:text-text-dark mt-0.5">
           {formatDisplayDate(selectedDate)}
         </Text>
         {!isToday ? (
           <TouchableOpacity onPress={() => onChange(today)} className="mt-1">
-            <Text className="text-[10px] font-black text-primary uppercase">Jump to today</Text>
+            <Text className="text-[10px] font-semibold text-primary uppercase">Jump to today</Text>
           </TouchableOpacity>
         ) : null}
       </View>

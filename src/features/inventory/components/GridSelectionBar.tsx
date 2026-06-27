@@ -32,7 +32,7 @@ export default function GridSelectionBar({
           <Text className="text-xs font-bold text-muted dark:text-muted-dark ml-1">Cancel</Text>
         </TouchableOpacity>
 
-        <Text className="text-xs font-black text-text dark:text-text-dark">
+        <Text className="text-xs font-semibold text-text dark:text-text-dark">
           {selection.count} of {selection.total} selected
         </Text>
 
@@ -42,7 +42,7 @@ export default function GridSelectionBar({
             activeOpacity={0.7}
             className="px-3 h-9 rounded-xl bg-primary/10 border border-primary/20 items-center justify-center"
           >
-            <Text className="text-[10px] font-black text-primary">
+            <Text className="text-[10px] font-semibold text-primary">
               {selection.allSelected ? 'Unselect All' : 'Select All'}
             </Text>
           </TouchableOpacity>

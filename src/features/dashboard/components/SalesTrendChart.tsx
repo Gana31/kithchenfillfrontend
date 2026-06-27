@@ -26,7 +26,7 @@ export default function SalesTrendChart({ trend, title = '7-day sales trend' }: 
 
   return (
     <Card className="p-4 mb-4">
-      <Text className="text-xs font-black text-text dark:text-text-dark uppercase tracking-widest mb-1">
+      <Text className="text-xs font-semibold text-text dark:text-text-dark tracking-normal mb-1">
         {title}
       </Text>
       <Text className="text-[10px] text-muted dark:text-muted-dark mb-4">
