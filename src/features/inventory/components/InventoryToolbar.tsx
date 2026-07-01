@@ -13,6 +13,7 @@ interface InventoryToolbarProps {
   isRefreshing: boolean;
   onRefresh: () => void;
   showSortMenu: boolean;
+  filterActive: boolean;
   onToggleSortMenu: () => void;
   showGridSelection: boolean;
   gridSelection: GridSelectionState;
@@ -28,6 +29,7 @@ export default function InventoryToolbar({
   isRefreshing,
   onRefresh,
   showSortMenu,
+  filterActive,
   onToggleSortMenu,
   showGridSelection,
   gridSelection,
@@ -59,12 +61,12 @@ export default function InventoryToolbar({
           onPress={onToggleSortMenu}
           activeOpacity={0.7}
           className={`h-9 w-9 rounded-xl border items-center justify-center ${
-            showSortMenu
+            showSortMenu || filterActive
               ? 'bg-primary/15 border-primary/30'
               : 'bg-card dark:bg-card-dark border-border dark:border-border-dark'
           }`}
         >
-          <Ionicons name="funnel-outline" size={16} color={showSortMenu ? primary : muted} />
+          <Ionicons name="funnel-outline" size={16} color={showSortMenu || filterActive ? primary : muted} />
         </TouchableOpacity>
       </View>
 

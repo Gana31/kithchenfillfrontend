@@ -101,7 +101,7 @@ export default function LoginScreen() {
                 label="Email Address"
                 value={email}
                 onChangeText={setEmail}
-                placeholder="Enter email (e.g. owner@kitchen.com)"
+                placeholder="Enter your email"
                 keyboardType="email-address"
               />
 
@@ -109,7 +109,7 @@ export default function LoginScreen() {
                 label="Password"
                 value={password}
                 onChangeText={setPassword}
-                placeholder="Enter password"
+                placeholder="Enter your password"
                 secureTextEntry
               />
 

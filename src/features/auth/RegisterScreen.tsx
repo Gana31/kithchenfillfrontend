@@ -115,7 +115,7 @@ export default function RegisterScreen() {
                 label="Email Address"
                 value={email}
                 onChangeText={setEmail}
-                placeholder="Enter email (e.g. owner@kitchen.com)"
+                placeholder="Enter your email"
                 keyboardType="email-address"
               />
 
@@ -123,7 +123,7 @@ export default function RegisterScreen() {
                 label="Password"
                 value={password}
                 onChangeText={setPassword}
-                placeholder="Create strong password"
+                placeholder="Enter your password"
                 secureTextEntry
               />
 

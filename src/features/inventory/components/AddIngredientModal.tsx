@@ -25,9 +25,15 @@ import {
   resolveUnitConfig,
   snapshotFromIngredient,
   UnitCategory,
+  RecipeQtyUnit,
+  getDefaultIngredientQtyUnit,
+  getIngredientQtyUnitOptions,
+  parseIngredientFormQty,
+  convertIngredientQtyInput,
 } from '../ingredientFormUtils';
 import { parseDecimalInput } from '../../dashboard/dashboardUtils';
-import { getInventoryQtyPlaceholder, parseInventoryQtyInput } from '../../inventory/inventoryUtils';
+import { getInventoryQtyPlaceholder } from '../../inventory/inventoryUtils';
+import InventoryQtyUnitToggle from './InventoryQtyUnitToggle';
 import { useThemeColors } from '../../../hooks/useThemeColors';
 import { compressImageForUpload } from '../../../utils/compressImage';
 import { useAppDispatch } from '../../../store/store';
@@ -53,7 +59,7 @@ const CATEGORIES = [
 ];
 
 export default function AddIngredientModal({ visible, onClose, ingredient }: AddIngredientModalProps) {
-  const { muted, primary } = useThemeColors();
+  const { muted, primary, border, card } = useThemeColors();
   const dispatch = useAppDispatch();
   const [createIngredient, { isLoading: isCreating }] = useCreateIngredientMutation();
   const [updateIngredient, { isLoading: isUpdating }] = useUpdateIngredientMutation();
@@ -66,6 +72,7 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
   const [minThresholdInput, setMinThresholdInput] = useState('');
   const [initialQtyInput, setInitialQtyInput] = useState('');
   const [purchaseCostInput, setPurchaseCostInput] = useState('');
+  const [qtyUnit, setQtyUnit] = useState<RecipeQtyUnit>('kg');
   const [formError, setFormError] = useState('');
 
   // Image upload state
@@ -87,6 +94,7 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
       setMinThresholdInput(snapshot.minThresholdInput);
       setInitialQtyInput(snapshot.qtyInput);
       setPurchaseCostInput(snapshot.purchaseCostInput);
+      setQtyUnit(getDefaultIngredientQtyUnit(snapshot.unitCategory));
       setSelectedImage(snapshot.image);
       setInitialImage(snapshot.image);
     } else {
@@ -99,6 +107,7 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
       setSelectedImage(null);
       setInitialImage(null);
       setPurchaseCostInput('');
+      setQtyUnit('kg');
     }
     setFormError('');
   }, [ingredient, visible]);
@@ -156,8 +165,8 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
     );
     const unitRelation = { purchaseUnit, baseUnit, conversionRatio: ratio };
 
-    const baseThreshold = parseInventoryQtyInput(minThresholdInput, unitRelation);
-    const baseQuantity = parseInventoryQtyInput(initialQtyInput, unitRelation);
+    const baseThreshold = parseIngredientFormQty(minThresholdInput, qtyUnit, unitCategory, unitRelation);
+    const baseQuantity = parseIngredientFormQty(initialQtyInput, qtyUnit, unitCategory, unitRelation);
     const rawCost = parseDecimalInput(purchaseCostInput);
 
     if (ingredient) {
@@ -357,7 +366,26 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
   };
 
   const { priceLabel } = getUnitLabels();
-  const qtyPlaceholder = getInventoryQtyPlaceholder(unitCategory);
+  const showWeightUnitToggle = unitCategory === 'weight';
+  const qtyUnitOptions = getIngredientQtyUnitOptions(unitCategory);
+  const qtyPlaceholder =
+    unitCategory === 'weight'
+      ? qtyUnit === 'kg'
+        ? 'e.g. 37'
+        : 'e.g. 500 or 37000'
+      : getInventoryQtyPlaceholder(unitCategory);
+
+  const handleQtyUnitChange = (next: RecipeQtyUnit) => {
+    if (next === qtyUnit) return;
+    setInitialQtyInput(convertIngredientQtyInput(initialQtyInput, qtyUnit, next, 1000));
+    setMinThresholdInput(convertIngredientQtyInput(minThresholdInput, qtyUnit, next, 1000));
+    setQtyUnit(next);
+  };
+
+  const handleUnitCategoryChange = (category: UnitCategory) => {
+    setUnitCategory(category);
+    setQtyUnit(getDefaultIngredientQtyUnit(category));
+  };
 
   return (
     <Modal
@@ -491,7 +519,7 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
               </Text>
               <View className="flex-row mb-5" style={{ gap: 8 }}>
                 <TouchableOpacity
-                  onPress={() => setUnitCategory('weight')}
+                  onPress={() => handleUnitCategoryChange('weight')}
                   activeOpacity={0.7}
                   className={`flex-1 py-3 px-2 rounded-xl border items-center justify-center flex-row ${
                     unitCategory === 'weight'
@@ -506,7 +534,7 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  onPress={() => setUnitCategory('volume')}
+                  onPress={() => handleUnitCategoryChange('volume')}
                   activeOpacity={0.7}
                   className={`flex-1 py-3 px-2 rounded-xl border items-center justify-center flex-row ${
                     unitCategory === 'volume'
@@ -521,7 +549,7 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  onPress={() => setUnitCategory('count')}
+                  onPress={() => handleUnitCategoryChange('count')}
                   activeOpacity={0.7}
                   className={`flex-1 py-3 px-2 rounded-xl border items-center justify-center flex-row ${
                     unitCategory === 'count'
@@ -536,8 +564,34 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
                 </TouchableOpacity>
               </View>
 
+              {showWeightUnitToggle ? (
+                <View className="mb-4">
+                  <Text className="text-xs font-semibold text-text dark:text-text-dark mb-2 tracking-normal">
+                    Enter stock & threshold in
+                  </Text>
+                  <InventoryQtyUnitToggle
+                    options={qtyUnitOptions}
+                    value={qtyUnit}
+                    onChange={handleQtyUnitChange}
+                    primary={primary}
+                    muted={muted}
+                    border={border}
+                    card={card}
+                  />
+                  <Text className="text-[10px] text-muted dark:text-muted-dark mt-2 leading-relaxed">
+                    Stored as grams in inventory — type 37 in kg or 37000 in g.
+                  </Text>
+                </View>
+              ) : null}
+
               <Input
-                label={ingredient ? `Current Stock Quantity` : `Initial Stock Quantity`}
+                label={
+                  showWeightUnitToggle
+                    ? `${ingredient ? 'Current Stock Quantity' : 'Initial Stock Quantity'} (${qtyUnit})`
+                    : ingredient
+                      ? 'Current Stock Quantity'
+                      : 'Initial Stock Quantity'
+                }
                 placeholder={qtyPlaceholder}
                 value={initialQtyInput}
                 onChangeText={setInitialQtyInput}
@@ -545,7 +599,7 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
               />
 
               <Input
-                label={`Alert Threshold`}
+                label={showWeightUnitToggle ? `Alert Threshold (${qtyUnit})` : 'Alert Threshold'}
                 placeholder={qtyPlaceholder}
                 value={minThresholdInput}
                 onChangeText={setMinThresholdInput}

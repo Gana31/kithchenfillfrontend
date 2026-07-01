@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors } from '../../hooks/useThemeColors';
 import ConfirmModal from '../../components/ConfirmModal';
 import ScreenContainer from '../../components/ScreenContainer';
+import SpacedStack, { SectionHeading } from '../../components/SpacedStack';
 import * as Updates from 'expo-updates';
 import { checkForOtaUpdate, downloadAndApplyOtaUpdate } from '../../utils/otaUpdates';
 import ChangePasswordCard from './ChangePasswordCard';
@@ -45,10 +46,12 @@ export default function ProfileScreen({ navigation }: any) {
 
   const channelHint =
     currentChannel === 'preview'
-      ? 'Test APK — receives preview updates only, not production.'
+      ? 'Test APK — run: eas update --branch preview'
       : currentChannel === 'production'
-        ? 'Live build — receives production updates.'
-        : null;
+        ? 'Live APK — run: eas update --branch production (not preview).'
+        : currentChannel === 'development'
+          ? 'Dev client — OTA updates are usually disabled.'
+          : null;
 
   const handleCheckForUpdates = async () => {
     if (!Updates.isEnabled) {
@@ -203,8 +206,8 @@ export default function ProfileScreen({ navigation }: any) {
     <>
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <ScreenContainer scrollable contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 16 }}>
-        {/* User Card with Avatar */}
-        <Card className="mb-6 items-center py-6">
+        <SpacedStack gap={16}>
+        <Card className="items-center py-6">
           <View className="w-20 h-20 rounded-full bg-primary/10 border border-primary/20 items-center justify-center mb-3">
             <Ionicons name="person" size={40} color={primary} />
           </View>
@@ -221,12 +224,10 @@ export default function ProfileScreen({ navigation }: any) {
           </View>
         </Card>
 
-        {/* Update Details Section */}
-        <Text className="text-lg font-semibold text-text dark:text-text-dark mb-4">
-          Account Settings
-        </Text>
+        <View>
+        <SectionHeading title="Account Settings" />
 
-        <Card className="mb-6 p-5">
+        <Card className="p-5">
           <Input
             label="Full Name"
             placeholder="Enter your name"
@@ -247,10 +248,10 @@ export default function ProfileScreen({ navigation }: any) {
             className="mt-2"
           />
         </Card>
+        </View>
 
-        <Text className="text-lg font-semibold text-text dark:text-text-dark mb-4">
-          Security
-        </Text>
+        <View>
+        <SectionHeading title="Security" />
 
         <ChangePasswordCard
           email={user?.email || email}
@@ -268,12 +269,12 @@ export default function ProfileScreen({ navigation }: any) {
             dispatch(showToast({ title: 'Password', message, type: 'error' }))
           }
         />
+        </View>
 
-        <Text className="text-lg font-semibold text-text dark:text-text-dark mb-4">
-          Appearance
-        </Text>
+        <View>
+        <SectionHeading title="Appearance" />
 
-        <Card className="mb-6 p-5">
+        <Card className="p-5">
           <Text className="text-xs text-muted dark:text-muted-dark font-bold tracking-normal mb-3">
             Theme
           </Text>
@@ -310,12 +311,11 @@ export default function ProfileScreen({ navigation }: any) {
             Your theme choice is saved on this device and stays selected when you reopen the app.
           </Text>
         </Card>
+        </View>
 
-        {/* App Updates Section */}
-        <Text className="text-lg font-semibold text-text dark:text-text-dark mb-4">
-          App Update
-        </Text>
-        <Card className="mb-6 p-5">
+        <View>
+        <SectionHeading title="App Update" />
+        <Card className="p-5">
           <View className="flex-row justify-between items-center mb-4">
             <View className="flex-1 mr-4">
               <Text className="text-xs text-muted dark:text-muted-dark font-bold tracking-normal">
@@ -373,13 +373,12 @@ export default function ProfileScreen({ navigation }: any) {
             variant={isUpdateAvailable ? "primary" : "secondary"}
           />
         </Card>
+        </View>
 
-        {/* Danger Zone */}
-        <Text className="text-lg font-semibold text-text dark:text-text-dark mb-4">
-          Session
-        </Text>
+        <View>
+        <SectionHeading title="Session" />
 
-        <Card className="p-5 border-red-500/10 bg-red-500/5 dark:bg-red-500/5 mb-4">
+        <Card className="p-5 border-red-500/10 bg-red-500/5 dark:bg-red-500/5">
           <Text className="text-xs text-red-500 dark:text-red-400 font-bold tracking-normal mb-2">
             Exit Account
           </Text>
@@ -399,6 +398,8 @@ export default function ProfileScreen({ navigation }: any) {
             </View>
           </TouchableOpacity>
         </Card>
+        </View>
+        </SpacedStack>
       </ScreenContainer>
 
       <ConfirmModal

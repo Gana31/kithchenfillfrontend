@@ -1,5 +1,5 @@
 import { UnitRelation } from './inventoryApi';
-import { normalizeUnitRelation } from './inventoryUtils';
+import { normalizeUnitRelation, parseInventoryQtyInput } from './inventoryUtils';
 
 export type UnitCategory = 'weight' | 'volume' | 'count';
 export type RecipeQtyUnit = 'g' | 'kg' | 'ml' | 'L' | 'pcs';
@@ -28,6 +28,54 @@ export function formatQtyForInput(valueInBase: number, ratio: number): string {
   if (Number.isInteger(value)) return String(value);
   const rounded = Math.round(value * 1000) / 1000;
   return String(rounded);
+}
+
+/** Format stored base qty (g/ml/pcs) for the selected input unit. */
+export function formatQtyForUnit(valueInBase: number, qtyUnit: RecipeQtyUnit, ratio: number): string {
+  if (qtyUnit === 'kg' || qtyUnit === 'L') {
+    return formatQtyForInput(valueInBase, ratio);
+  }
+  if (Number.isInteger(valueInBase)) return String(valueInBase);
+  const rounded = Math.round(valueInBase * 1000) / 1000;
+  return String(rounded);
+}
+
+export function getDefaultIngredientQtyUnit(unitCategory: UnitCategory): RecipeQtyUnit {
+  if (unitCategory === 'volume') return 'L';
+  if (unitCategory === 'count') return 'pcs';
+  return 'kg';
+}
+
+export function getIngredientQtyUnitOptions(unitCategory: UnitCategory): RecipeQtyUnit[] {
+  if (unitCategory === 'weight') return ['g', 'kg'];
+  if (unitCategory === 'volume') return ['ml', 'L'];
+  return ['pcs'];
+}
+
+export function parseIngredientFormQty(
+  input: string,
+  qtyUnit: RecipeQtyUnit,
+  unitCategory: UnitCategory,
+  unitRelation: UnitRelation
+): number {
+  if (unitCategory === 'weight' || unitCategory === 'volume') {
+    return parseRecipeQtyWithUnit(input, qtyUnit);
+  }
+  return parseInventoryQtyInput(input, unitRelation);
+}
+
+/** Convert a form field string when switching g ↔ kg (weight only). */
+export function convertIngredientQtyInput(
+  input: string,
+  fromUnit: RecipeQtyUnit,
+  toUnit: RecipeQtyUnit,
+  ratio: number
+): string {
+  const trimmed = input.trim();
+  if (!trimmed || fromUnit === toUnit) return input;
+  const base = parseRecipeQtyWithUnit(trimmed, fromUnit);
+  if (!Number.isFinite(base)) return input;
+  return formatQtyForUnit(base, toUnit, ratio);
 }
 
 export function getDefaultRecipeQtyUnit(unitRelation: UnitRelation): RecipeQtyUnit {

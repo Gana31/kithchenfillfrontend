@@ -5,6 +5,9 @@ import { IngredientData, StockLevel, UnitRelation } from './inventoryApi';
 export type InventoryLayout = 'list' | 'grid';
 export type SortOption = 'name-asc' | 'name-desc' | 'stock-asc' | 'stock-desc';
 
+/** Client-side stock level filter (red / yellow / green indicators). */
+export type StockLevelFilter = 'all' | 'low' | 'average' | 'high';
+
 export function isStockLevelSortOption(sortBy: SortOption): boolean {
   return sortBy === 'stock-asc' || sortBy === 'stock-desc';
 }
@@ -48,6 +51,19 @@ export async function saveInventoryPreferences(prefs: InventoryPreferences): Pro
 export const GRID_COLUMNS = 3;
 export const GRID_HORIZONTAL_PADDING = 12;
 export const GRID_GAP = 6;
+
+/** Fixed list row sizing — keeps FlatList scroll smooth without blank gaps. */
+export const LIST_ITEM_GAP = 16;
+export const LIST_CARD_HEIGHT = 142;
+export const LIST_ITEM_STRIDE = LIST_CARD_HEIGHT + LIST_ITEM_GAP;
+
+export function getListItemLayout(_data: ArrayLike<unknown> | null | undefined, index: number) {
+  return {
+    length: LIST_ITEM_STRIDE,
+    offset: LIST_ITEM_STRIDE * index,
+    index,
+  };
+}
 
 export function getGridCardWidth(screenWidth: number): number {
   const available = screenWidth - GRID_HORIZONTAL_PADDING * 2;
@@ -222,6 +238,19 @@ export function computeStockLevel(currentStock: number, minThreshold: number): S
   if (minThreshold <= 0) return currentStock > 0 ? 'high' : 'low';
   if (currentStock <= minThreshold * 2) return 'average';
   return 'high';
+}
+
+export function resolveIngredientStockLevel(ingredient: IngredientData): StockLevel {
+  if (ingredient.stockLevel) return ingredient.stockLevel;
+  return computeStockLevel(ingredient.currentStock, ingredient.minThreshold);
+}
+
+export function filterIngredientsByStockLevel(
+  ingredients: IngredientData[],
+  filter: StockLevelFilter
+): IngredientData[] {
+  if (filter === 'all') return ingredients;
+  return ingredients.filter((item) => resolveIngredientStockLevel(item) === filter);
 }
 
 const STOCK_LEVEL_RANK: Record<StockLevel, number> = {
@@ -470,6 +499,37 @@ export const SORT_OPTIONS: { value: SortOption; label: string; icon: string }[] 
   { value: 'name-desc', label: 'Name Z→A', icon: 'text-outline' },
   { value: 'stock-asc', label: 'Low → Avg → High', icon: 'trending-up-outline' },
   { value: 'stock-desc', label: 'High → Avg → Low', icon: 'trending-down-outline' },
+];
+
+export const STOCK_LEVEL_FILTER_OPTIONS: {
+  value: StockLevelFilter;
+  label: string;
+  icon: string;
+  accentClass: string;
+  textClass: string;
+}[] = [
+  { value: 'all', label: 'All stock levels', icon: 'layers-outline', accentClass: '', textClass: '' },
+  {
+    value: 'low',
+    label: 'Low stock',
+    icon: 'warning',
+    accentClass: 'bg-red-500/10',
+    textClass: 'text-red-500',
+  },
+  {
+    value: 'average',
+    label: 'Average stock',
+    icon: 'remove-circle-outline',
+    accentClass: 'bg-yellow-500/15',
+    textClass: 'text-yellow-600 dark:text-yellow-400',
+  },
+  {
+    value: 'high',
+    label: 'High stock',
+    icon: 'checkmark-circle-outline',
+    accentClass: 'bg-emerald-500/10',
+    textClass: 'text-emerald-500',
+  },
 ];
 
 export interface StockLevelTheme {

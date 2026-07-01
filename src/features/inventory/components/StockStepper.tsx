@@ -1,7 +1,8 @@
 import React, { useRef, useState } from 'react';
-import { View, Text, TextInput, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors } from '../../../hooks/useThemeColors';
+import { SCROLL_PRESS_DELAY_MS } from '../../../components/scrollUtils';
 import { parseStepAmount, getPurchaseUnitLabel } from '../inventoryUtils';
 
 interface StockStepperProps {
@@ -12,7 +13,7 @@ interface StockStepperProps {
   onStepAdjust: (type: 'add' | 'deduct', baseAmount: number) => void;
 }
 
-export default function StockStepper({ baseUnit, conversionRatio, isUpdating = false, onStepAdjust, compact = false }: StockStepperProps) {
+function StockStepper({ baseUnit, conversionRatio, isUpdating = false, onStepAdjust, compact = false }: StockStepperProps) {
   const { danger, success, text, muted } = useThemeColors();
   const [stepInput, setStepInput] = useState('1');
   const lastStepPressAt = useRef(0);
@@ -40,8 +41,10 @@ export default function StockStepper({ baseUnit, conversionRatio, isUpdating = f
         compact ? 'rounded-none px-1 py-1 mx-0' : 'rounded-xl p-1'
       }`}
     >
-      <Pressable
+      <TouchableOpacity
         onPress={() => handleAdjust('deduct')}
+        delayPressIn={SCROLL_PRESS_DELAY_MS}
+        activeOpacity={0.7}
         style={{ width: btnSize, height: btnSize }}
         className={`rounded-lg bg-red-500/10 ${compact ? 'border border-red-500/20' : ''} justify-center items-center active:bg-red-500/20`}
       >
@@ -50,7 +53,7 @@ export default function StockStepper({ baseUnit, conversionRatio, isUpdating = f
         ) : (
           <Ionicons name="remove-outline" size={compact ? 18 : 18} color={danger} />
         )}
-      </Pressable>
+      </TouchableOpacity>
 
       <View className={`flex-1 flex-row items-center justify-center ${compact ? 'px-1' : 'px-2'}`} style={{ gap: compact ? 3 : 4 }}>
         <TextInput
@@ -74,8 +77,10 @@ export default function StockStepper({ baseUnit, conversionRatio, isUpdating = f
         <Text className={`font-bold text-muted dark:text-muted-dark ${compact ? 'text-[8px]' : 'text-xs'}`}>{unitLabel}</Text>
       </View>
 
-      <Pressable
+      <TouchableOpacity
         onPress={() => handleAdjust('add')}
+        delayPressIn={SCROLL_PRESS_DELAY_MS}
+        activeOpacity={0.7}
         style={{ width: btnSize, height: btnSize }}
         className={`rounded-lg bg-emerald-500/10 ${compact ? 'border border-emerald-500/20' : ''} justify-center items-center active:bg-emerald-500/20`}
       >
@@ -84,7 +89,9 @@ export default function StockStepper({ baseUnit, conversionRatio, isUpdating = f
         ) : (
           <Ionicons name="add-outline" size={18} color={success} />
         )}
-      </Pressable>
+      </TouchableOpacity>
     </View>
   );
 }
+
+export default React.memo(StockStepper);

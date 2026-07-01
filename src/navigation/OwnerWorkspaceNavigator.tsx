@@ -26,6 +26,7 @@ export function OwnerTabNavigator() {
         headerShown: true,
         header: (props) => <CustomAppHeader {...props} />,
         animation: 'shift',
+        freezeOnBlur: true,
         sceneStyle: { flex: 1, backgroundColor: 'transparent' },
       }}
     >
@@ -44,7 +45,7 @@ export default function OwnerWorkspaceNavigator() {
   return (
     <View style={{ flex: 1, backgroundColor: isDark ? '#09090A' : '#FFFFFF' }}>
       <BlobBackground />
-      <View style={{ flex: 1, zIndex: 1, elevation: 1 }}>
+      <View style={{ flex: 1, zIndex: 1, elevation: 1, backgroundColor: 'transparent' }}>
         <OwnerStack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
           <OwnerStack.Screen name="MainTabs" component={OwnerTabNavigator} />
           <OwnerStack.Screen name="AddRecipe" component={AddRecipeScreen} />

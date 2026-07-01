@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { View, Text, Image, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors } from '../../../hooks/useThemeColors';
+import { SCROLL_PRESS_DELAY_MS } from '../../../components/scrollUtils';
 import { IngredientData } from '../inventoryApi';
 import {
   getCategoryDetails,
@@ -55,17 +56,17 @@ function IngredientCard({
 
   return (
     <View
-      className="overflow-hidden shadow-sm p-3 rounded-3xl border border-border/30 dark:border-border-dark/30 bg-card dark:bg-card-dark w-full"
+      className="overflow-hidden p-3 rounded-3xl border border-border/30 dark:border-border-dark/30 bg-card dark:bg-card-dark w-full"
       style={stockBorder ?? undefined}
     >
       <View className="flex-row items-center mb-3">
         <View className="flex-row items-center flex-1 mr-2">
           {image ? (
             <Image
-              key={ingredient._id}
               source={{ uri: image }}
               className="w-11 h-11 rounded-xl mr-2.5 border border-border/10"
               resizeMode="cover"
+              fadeDuration={0}
             />
           ) : (
             <View className="w-11 h-11 rounded-xl bg-primary/10 border border-primary/20 items-center justify-center mr-2.5">
@@ -92,6 +93,7 @@ function IngredientCard({
           <TouchableOpacity
             onPress={onAdjust}
             disabled={isUpdating}
+            delayPressIn={SCROLL_PRESS_DELAY_MS}
             activeOpacity={0.8}
             className="bg-border/10 dark:bg-border-dark/10 border border-border/20 dark:border-border-dark/20 rounded-xl px-3 py-1.5 items-center w-full"
           >
@@ -127,6 +129,7 @@ function IngredientCard({
           <TouchableOpacity
             onPress={onEdit}
             disabled={isUpdating}
+            delayPressIn={SCROLL_PRESS_DELAY_MS}
             activeOpacity={0.7}
             className="w-8 h-8 rounded-xl bg-border/20 items-center justify-center active:bg-border/30 disabled:opacity-50"
           >
@@ -136,6 +139,7 @@ function IngredientCard({
           <TouchableOpacity
             onPress={onDelete}
             disabled={isUpdating}
+            delayPressIn={SCROLL_PRESS_DELAY_MS}
             activeOpacity={0.7}
             className="w-8 h-8 rounded-xl bg-red-500/10 items-center justify-center active:bg-red-500/20 disabled:opacity-50"
           >

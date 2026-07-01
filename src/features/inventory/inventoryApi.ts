@@ -1,8 +1,8 @@
 import { baseApi } from '../../services/api';
-import type { SortOption } from './inventoryUtils';
+import type { SortOption, StockLevelFilter } from './inventoryUtils';
 import { isStockLevelSortOption, normalizeIngredientRecord } from './inventoryUtils';
 
-export const INGREDIENTS_PAGE_SIZE = 25;
+export const INGREDIENTS_PAGE_SIZE = 100;
 /** Single request when sorting by stock level — avoids reorder flicker while pages load. */
 export const STOCK_SORT_FETCH_LIMIT = 500;
 
@@ -11,6 +11,7 @@ export interface IngredientsQueryArgs {
   limit: number;
   search: string;
   sortBy: SortOption;
+  stockFilter: StockLevelFilter;
 }
 
 export interface IngredientsPageResponse {
@@ -190,18 +191,20 @@ function patchIngredientInCache(
 function ingredientsCacheKey(args: IngredientsQueryArgs): string {
   const stockLevelSort = isStockLevelSortOption(args.sortBy);
   const sortKey = stockLevelSort ? 'stock-level' : args.sortBy;
-  return `${args.search}|${sortKey}|${args.limit}`;
+  const filterKey = args.stockFilter !== 'all' ? args.stockFilter : 'all';
+  return `${args.search}|${sortKey}|${filterKey}|${args.limit}`;
 }
 
 export const inventoryApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getIngredients: builder.query<IngredientsPageResponse, IngredientsQueryArgs>({
-      query: ({ page, limit, search, sortBy }) => ({
+      query: ({ page, limit, search, sortBy, stockFilter }) => ({
         url: '/ingredients',
         params: {
           page,
           limit,
           search: search || undefined,
+          stockLevel: stockFilter !== 'all' ? stockFilter : undefined,
           sortBy:
             sortBy === 'stock-asc' || sortBy === 'stock-desc' ? 'name-asc' : sortBy,
         },

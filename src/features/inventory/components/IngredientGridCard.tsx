@@ -10,6 +10,7 @@ import {
   getStockLevelTheme,
   GRID_NAME_BLOCK_HEIGHT,
 } from '../inventoryUtils';
+import { SCROLL_PRESS_DELAY_MS } from '../../../components/scrollUtils';
 import StockStepper from './StockStepper';
 
 interface IngredientGridCardProps {
@@ -27,9 +28,8 @@ interface IngredientGridCardProps {
 
 const LONG_PRESS_DELAY = 300;
 const SUPPRESS_PRESS_MS = 700;
-const SCROLL_PRESS_DELAY = 120;
 
-export default React.memo(function IngredientGridCard({
+function IngredientGridCard({
   ingredient,
   cardWidth,
   cardHeight,
@@ -105,10 +105,10 @@ export default React.memo(function IngredientGridCard({
     >
       {image ? (
         <Image
-          key={ingredient._id}
           source={{ uri: image }}
           style={{ width: '100%', height: '100%' }}
           resizeMode="cover"
+          fadeDuration={0}
         />
       ) : (
         <View style={{ width: '100%', height: '100%' }} className="bg-primary/10 items-center justify-center">
@@ -208,10 +208,14 @@ export default React.memo(function IngredientGridCard({
           onPress={handleCardPress}
           onLongPress={selectionMode ? undefined : handleLongPress}
           delayLongPress={LONG_PRESS_DELAY}
-          delayPressIn={SCROLL_PRESS_DELAY}
+          delayPressIn={SCROLL_PRESS_DELAY_MS}
           activeOpacity={0.85}
           disabled={isUpdating}
-          style={{ alignItems: 'center', paddingTop: 4, paddingBottom: selectionMode ? 4 : 0 }}
+          style={{
+            alignItems: 'center',
+            paddingTop: 4,
+            paddingBottom: selectionMode ? 4 : 0,
+          }}
         >
           {imageBlock}
           {nameBlock}
@@ -221,4 +225,27 @@ export default React.memo(function IngredientGridCard({
       </View>
     </View>
   );
-});
+}
+
+function gridCardPropsAreEqual(
+  prev: IngredientGridCardProps,
+  next: IngredientGridCardProps
+) {
+  return (
+    prev.ingredient._id === next.ingredient._id &&
+    prev.ingredient.currentStock === next.ingredient.currentStock &&
+    prev.ingredient.image === next.ingredient.image &&
+    prev.ingredient.purchasePrice === next.ingredient.purchasePrice &&
+    prev.cardWidth === next.cardWidth &&
+    prev.cardHeight === next.cardHeight &&
+    prev.isUpdating === next.isUpdating &&
+    prev.selectionMode === next.selectionMode &&
+    prev.isSelected === next.isSelected &&
+    prev.onEdit === next.onEdit &&
+    prev.onLongPress === next.onLongPress &&
+    prev.onToggleSelect === next.onToggleSelect &&
+    prev.onStepAdjust === next.onStepAdjust
+  );
+}
+
+export default React.memo(IngredientGridCard, gridCardPropsAreEqual);

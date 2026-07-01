@@ -8,6 +8,7 @@ import Card from '../../components/Card';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors } from '../../hooks/useThemeColors';
 import ScreenContainer from '../../components/ScreenContainer';
+import SpacedStack from '../../components/SpacedStack';
 import { openOwnerWorkspace } from './superadminNavigation';
 import { TenantData } from './superadminApi';
 
@@ -55,7 +56,8 @@ export default function SuperadminDashboardScreen({ navigation }: { navigation?:
         ) : (
           <>
             {/* Row 1: Total Tenants */}
-            <Card className="mb-4 p-5 flex-row justify-between items-center bg-gradient-to-r from-card to-card/50">
+            <SpacedStack gap={16}>
+              <Card className="p-5 flex-row justify-between items-center bg-gradient-to-r from-card to-card/50">
               <View>
                 <Text className="text-xs text-muted dark:text-muted-dark font-bold tracking-normal">
                   Total Registered Kitchens
@@ -69,10 +71,8 @@ export default function SuperadminDashboardScreen({ navigation }: { navigation?:
               </View>
             </Card>
 
-            {/* Row 2: Active & Deactivated split */}
-            <View className="flex-row space-x-4 mb-6" style={{ gap: 16 }}>
-              {/* Active */}
-              <View className="flex-1">
+            <View className="flex-row" style={{ marginHorizontal: -8 }}>
+              <View className="flex-1" style={{ paddingHorizontal: 8 }}>
                 <Card className="p-4 bg-emerald-500/5 border-emerald-500/10">
                   <View className="flex-row justify-between items-center mb-2">
                     <Text className="text-xs text-muted dark:text-muted-dark font-bold tracking-normal">
@@ -89,8 +89,7 @@ export default function SuperadminDashboardScreen({ navigation }: { navigation?:
                 </Card>
               </View>
 
-              {/* Deactivated */}
-              <View className="flex-1">
+              <View className="flex-1" style={{ paddingHorizontal: 8 }}>
                 <Card className="p-4 bg-zinc-500/5 border-zinc-500/10">
                   <View className="flex-row justify-between items-center mb-2">
                     <Text className="text-xs text-muted dark:text-muted-dark font-bold tracking-normal">
@@ -108,7 +107,7 @@ export default function SuperadminDashboardScreen({ navigation }: { navigation?:
               </View>
             </View>
 
-            {/* Recent Registrations Section */}
+            <View>
             <View className="flex-row justify-between items-center mb-4">
               <Text className="text-lg font-semibold text-text dark:text-text-dark">
                 Recent Workspace Signs
@@ -126,7 +125,7 @@ export default function SuperadminDashboardScreen({ navigation }: { navigation?:
                 </Text>
               </Card>
             ) : (
-              <View className="space-y-3" style={{ gap: 12 }}>
+              <SpacedStack gap={12}>
                 {tenants.slice(0, 5).map((tenant) => (
                   <TouchableOpacity
                     key={tenant._id}
@@ -164,8 +163,10 @@ export default function SuperadminDashboardScreen({ navigation }: { navigation?:
                     </Card>
                   </TouchableOpacity>
                 ))}
-              </View>
+              </SpacedStack>
             )}
+            </View>
+            </SpacedStack>
           </>
         )}
       </ScreenContainer>

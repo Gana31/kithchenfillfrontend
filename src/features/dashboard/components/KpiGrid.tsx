@@ -38,9 +38,9 @@ function KpiCard({
 export default function KpiGrid({ summary, isLoading }: KpiGridProps) {
   if (isLoading || !summary) {
     return (
-      <View className="flex-row flex-wrap" style={{ gap: 12 }}>
+      <View className="flex-row flex-wrap" style={{ marginHorizontal: -6 }}>
         {[1, 2, 3, 4].map((key) => (
-          <View key={key} style={{ width: '47%' }}>
+          <View key={key} style={{ width: '50%', paddingHorizontal: 6, paddingBottom: 12 }}>
             <Card className="p-4 h-24 justify-center">
               <Text className="text-xs text-muted dark:text-muted-dark">Loading...</Text>
             </Card>
@@ -50,25 +50,36 @@ export default function KpiGrid({ summary, isLoading }: KpiGridProps) {
     );
   }
 
+  const kpiRowStyle = { flexDirection: 'row' as const, marginHorizontal: -6, paddingBottom: 12 };
+  const kpiCellStyle = { flex: 1, paddingHorizontal: 6 };
+
   return (
-    <View style={{ gap: 12 }}>
-      <View className="flex-row" style={{ gap: 12 }}>
-        <KpiCard label="Gross sales" value={formatInr(summary.grossRevenue)} />
-        <KpiCard label="Making cost" value={formatInr(summary.makingCost)} accent="text-red-500" />
+    <View>
+      <View style={kpiRowStyle}>
+        <View style={kpiCellStyle}>
+          <KpiCard label="Gross sales" value={formatInr(summary.grossRevenue)} />
+        </View>
+        <View style={kpiCellStyle}>
+          <KpiCard label="Making cost" value={formatInr(summary.makingCost)} accent="text-red-500" />
+        </View>
       </View>
-      <View className="flex-row" style={{ gap: 12 }}>
-        <KpiCard
-          label="Net profit"
-          value={formatInr(summary.netProfit)}
-          accent={summary.netProfit >= 0 ? 'text-emerald-500' : 'text-red-500'}
-          sub={`${summary.orderCount} orders`}
-        />
-        <KpiCard
-          label="Margin"
-          value={`${summary.marginPercent}%`}
-          accent="text-primary"
-          sub={`${summary.lowStockCount} low stock`}
-        />
+      <View className="flex-row" style={{ marginHorizontal: -6 }}>
+        <View style={kpiCellStyle}>
+          <KpiCard
+            label="Net profit"
+            value={formatInr(summary.netProfit)}
+            accent={summary.netProfit >= 0 ? 'text-emerald-500' : 'text-red-500'}
+            sub={`${summary.orderCount} orders`}
+          />
+        </View>
+        <View style={kpiCellStyle}>
+          <KpiCard
+            label="Margin"
+            value={`${summary.marginPercent}%`}
+            accent="text-primary"
+            sub={`${summary.lowStockCount} low stock`}
+          />
+        </View>
       </View>
     </View>
   );

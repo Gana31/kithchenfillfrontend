@@ -2,18 +2,21 @@ import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
   Modal,
   FlatList,
   Pressable,
   TextInput,
+  TouchableOpacity,
   StyleSheet,
   useWindowDimensions,
 } from 'react-native';
+import { TouchableOpacity as GestureTouchableOpacity } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IngredientData } from '../../inventory/inventoryApi';
 import { formatPurchasePriceDisplay } from '../../inventory/inventoryUtils';
 import { useThemeColors } from '../../../hooks/useThemeColors';
+import { SCROLL_PRESS_DELAY_MS } from '../../../components/scrollUtils';
 import { getIngredientUnitDisplay } from '../recipeCostingUtils';
 
 interface IngredientPickerProps {
@@ -32,6 +35,7 @@ export default function IngredientPicker({
   placeholder = 'Pick ingredient',
 }: IngredientPickerProps) {
   const { primary, muted, text, card, background, border } = useThemeColors();
+  const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -49,7 +53,7 @@ export default function IngredientPicker({
     });
   }, [ingredients, search, excludeIds, selectedId]);
 
-  const sheetHeight = Math.round(windowHeight * 0.55);
+  const sheetMaxHeight = Math.round(windowHeight * 0.78);
 
   const openPicker = () => {
     setSearch('');
@@ -64,9 +68,10 @@ export default function IngredientPicker({
 
   return (
     <View style={styles.wrapper}>
-      <TouchableOpacity
+      <GestureTouchableOpacity
         onPress={openPicker}
-        activeOpacity={0.7}
+        activeOpacity={0.85}
+        delayPressIn={SCROLL_PRESS_DELAY_MS}
         style={[styles.trigger, { borderColor: border, backgroundColor: card }]}
       >
         <View style={styles.triggerMain}>
@@ -94,13 +99,28 @@ export default function IngredientPicker({
           </View>
         ) : null}
         <Ionicons name="chevron-down" size={16} color={muted} />
-      </TouchableOpacity>
+      </GestureTouchableOpacity>
 
-      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+      <Modal
+        visible={open}
+        transparent
+        animationType="slide"
+        statusBarTranslucent
+        onRequestClose={() => setOpen(false)}
+      >
         <View style={styles.overlay}>
           <Pressable style={styles.backdrop} onPress={() => setOpen(false)} />
 
-          <View style={[styles.sheet, { height: sheetHeight, backgroundColor: background }]}>
+          <View
+            style={[
+              styles.sheet,
+              {
+                maxHeight: sheetMaxHeight,
+                paddingBottom: Math.max(insets.bottom, 16),
+                backgroundColor: background,
+              },
+            ]}
+          >
             <View style={[styles.sheetHeader, { borderBottomColor: border }]}>
               <Text style={[styles.sheetTitle, { color: text }]}>Pick ingredient</Text>
               <TouchableOpacity onPress={() => setOpen(false)} hitSlop={10}>
@@ -115,7 +135,6 @@ export default function IngredientPicker({
                 onChangeText={setSearch}
                 placeholder="Search..."
                 placeholderTextColor={muted}
-                autoFocus
                 style={[styles.searchInput, { color: text }]}
               />
               {search ? (
@@ -144,7 +163,7 @@ export default function IngredientPicker({
                 return (
                   <TouchableOpacity
                     onPress={() => handleSelect(item._id)}
-                    activeOpacity={0.7}
+                    activeOpacity={0.75}
                     style={[
                       styles.listItem,
                       {
@@ -168,11 +187,6 @@ export default function IngredientPicker({
                           ? priceDisplay.text
                           : 'Set price in inventory'}
                       </Text>
-                      {priceDisplay.hasPrice ? (
-                        <Text numberOfLines={1} style={[styles.listItemQtyHint, { color: muted }]}>
-                          Tap g/kg or ml/L when adding qty
-                        </Text>
-                      ) : null}
                     </View>
                     <View style={[styles.unitChip, { borderColor: `${primary}40` }]}>
                       <Text style={[styles.unitChipText, { color: primary }]}>{unit.purchaseLabel}</Text>
@@ -238,6 +252,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     overflow: 'hidden',
+    minHeight: 280,
   },
   sheetHeader: {
     flexDirection: 'row',
@@ -269,11 +284,12 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
   },
   list: {
-    flex: 1,
+    flexGrow: 0,
+    flexShrink: 1,
   },
   listContent: {
     paddingHorizontal: 12,
-    paddingBottom: 20,
+    paddingBottom: 12,
   },
   emptyText: {
     textAlign: 'center',
@@ -285,7 +301,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderRadius: 10,
     borderWidth: 1,
     marginBottom: 8,
@@ -293,6 +309,7 @@ const styles = StyleSheet.create({
   },
   listItemMain: {
     flex: 1,
+    minWidth: 0,
   },
   listItemName: {
     fontSize: 14,
@@ -302,10 +319,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
     marginTop: 3,
-  },
-  listItemQtyHint: {
-    fontSize: 11,
-    fontWeight: '600',
-    marginTop: 2,
   },
 });

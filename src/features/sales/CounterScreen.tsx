@@ -8,6 +8,7 @@ import { useAppDispatch, useAppSelector } from '../../store/store';
 import { selectActiveTenantId } from '../auth/authSlice';
 import { showToast } from '../../store/toastSlice';
 import ScreenContainer from '../../components/ScreenContainer';
+import { SCROLL_PRESS_DELAY_MS } from '../../components/scrollUtils';
 import { useCreateManualOrderMutation } from './ordersApi';
 import { useGetDailySummaryQuery } from '../dashboard/analyticsApi';
 import { useGetCounterMenuQuery, CounterMenuItem } from '../recipes/recipesApi';
@@ -101,7 +102,7 @@ export default function CounterScreen({ navigation }: any) {
           ),
         }}
       >
-        <Card className="mb-6 p-5">
+        <Card className="p-5">
           <Text className="text-xs text-muted dark:text-muted-dark font-bold tracking-normal">
             Today&apos;s counter sales
           </Text>
@@ -132,16 +133,16 @@ export default function CounterScreen({ navigation }: any) {
             </Text>
           </Card>
         ) : (
-          <View className="flex-row flex-wrap justify-between mb-8" style={{ gap: 16 }}>
+          <View className="flex-row flex-wrap mb-8" style={{ marginHorizontal: -8 }}>
             {menuItems.map((item) => (
-              <TouchableOpacity
-                key={item.itemId}
-                onPress={() => handleLogSale(item)}
-                disabled={saving}
-                activeOpacity={0.8}
-                style={{ width: '47%' }}
-              >
-                <Card className="p-4 items-center border border-border/40 dark:border-border-dark/40">
+              <View key={item.itemId} style={{ width: '50%', paddingHorizontal: 8, paddingBottom: 16 }}>
+                <TouchableOpacity
+                  onPress={() => handleLogSale(item)}
+                  disabled={saving}
+                  delayPressIn={SCROLL_PRESS_DELAY_MS}
+                  activeOpacity={0.8}
+                >
+                  <Card className="p-4 items-center border border-border/40 dark:border-border-dark/40">
                   {saving ? (
                     <ActivityIndicator size="small" color={primary} style={{ marginBottom: 8 }} />
                   ) : (
@@ -159,7 +160,8 @@ export default function CounterScreen({ navigation }: any) {
                     cost {formatInr(item.makingCost)}
                   </Text>
                 </Card>
-              </TouchableOpacity>
+                </TouchableOpacity>
+              </View>
             ))}
           </View>
         )}

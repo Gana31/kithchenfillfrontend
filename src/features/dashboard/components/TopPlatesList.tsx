@@ -10,7 +10,7 @@ interface TopPlatesListProps {
 
 export default function TopPlatesList({ plates }: TopPlatesListProps) {
   return (
-    <Card className="p-4 mb-4">
+    <Card className="p-4">
       <Text className="text-xs font-semibold text-text dark:text-text-dark tracking-normal mb-4">
         Top plates
       </Text>

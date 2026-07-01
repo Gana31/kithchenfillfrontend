@@ -1,6 +1,7 @@
 import 'react-native-gesture-handler';
 import React, { useEffect } from 'react';
 import { useColorScheme, Appearance, View } from 'react-native';
+import { enableFreeze } from 'react-native-screens';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -35,6 +36,8 @@ import { SuperadminRootStackParamList } from './src/navigation/superadminNavigat
 import AppErrorBoundary from './src/components/AppErrorBoundary';
 import BlobBackground from './src/components/BlobBackground';
 import './global.css';
+
+enableFreeze(true);
 
 const Stack = createNativeStackNavigator();
 const SuperadminStack = createNativeStackNavigator<SuperadminRootStackParamList>();

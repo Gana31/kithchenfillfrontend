@@ -5,8 +5,8 @@ import {
   TouchableOpacity, 
   ActivityIndicator,
   LayoutChangeEvent,
+  ScrollView,
 } from 'react-native';
-import { ScrollView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { 
@@ -19,6 +19,8 @@ import { useThemeColors } from '../../hooks/useThemeColors';
 import SearchBar from '../../components/SearchBar';
 import OwnerCard from './components/OwnerCard';
 import AddOwnerModal from './components/AddOwnerModal';
+import SpacedStack from '../../components/SpacedStack';
+import { SCROLL_LIST_PROPS } from '../../components/scrollUtils';
 import { openOwnerWorkspace } from './superadminNavigation';
 import { TenantData } from './superadminApi';
 import { useAppDispatch } from '../../store/store';
@@ -130,15 +132,11 @@ export default function ManageOwnersScreen({ navigation }: any) {
         ) : (
           <View className="flex-1" onLayout={onScrollAreaLayout} collapsable={false}>
             <ScrollView
-              style={{ flex: 1 }}
-              contentContainerStyle={scrollContentStyle}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-              nestedScrollEnabled
-              alwaysBounceVertical
-              overScrollMode="always"
-              scrollEventThrottle={16}
+              style={{ flex: 1, backgroundColor: 'transparent' }}
+              contentContainerStyle={[scrollContentStyle, { flexGrow: 1 }]}
+              {...SCROLL_LIST_PROPS}
             >
+              <View style={{ width: '100%' }} collapsable={false} pointerEvents="box-none">
             {filteredTenants.length === 0 ? (
               <Card className="p-8 items-center justify-center">
                 <Text className="text-muted dark:text-muted-dark text-xs font-bold text-center">
@@ -146,7 +144,7 @@ export default function ManageOwnersScreen({ navigation }: any) {
                 </Text>
               </Card>
             ) : (
-              <View className="space-y-4" style={{ gap: 16 }}>
+              <SpacedStack gap={16}>
                 {filteredTenants.map((tenant) => (
                   <OwnerCard
                     key={tenant._id}
@@ -156,8 +154,9 @@ export default function ManageOwnersScreen({ navigation }: any) {
                     isToggling={isToggling}
                   />
                 ))}
-              </View>
+              </SpacedStack>
             )}
+              </View>
             </ScrollView>
           </View>
         )}

@@ -22,7 +22,7 @@ export default function PlatformChart({ comparison }: PlatformChartProps) {
 
   if (comparison.length === 0) {
     return (
-      <Card className="p-4 mb-4">
+      <Card className="p-4">
         <Text className="text-xs font-semibold tracking-normal mb-2">Sales by channel</Text>
         <Text className="text-xs text-muted dark:text-muted-dark py-4 text-center">No channel data for this day.</Text>
       </Card>
@@ -30,7 +30,7 @@ export default function PlatformChart({ comparison }: PlatformChartProps) {
   }
 
   return (
-    <Card className="p-4 mb-4">
+    <Card className="p-4">
       <Text className="text-xs font-semibold text-text dark:text-text-dark tracking-normal mb-4">
         Sales by channel
       </Text>

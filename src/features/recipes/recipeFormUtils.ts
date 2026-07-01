@@ -1,6 +1,11 @@
 import { RecipeData } from './recipesApi';
-import { getDefaultRecipeQtyUnit, RecipeQtyUnit } from '../inventory/ingredientFormUtils';
+import {
+  formatQtyForUnit,
+  getDefaultRecipeQtyUnit,
+  RecipeQtyUnit,
+} from '../inventory/ingredientFormUtils';
 import { IngredientData } from '../inventory/inventoryApi';
+import { normalizeUnitRelation } from '../inventory/inventoryUtils';
 
 export type LineKind = 'stock' | 'custom';
 
@@ -49,13 +54,20 @@ export function createEmptyFormState() {
 export function recipeToFormState(recipe: RecipeData, ingredients: IngredientData[] = []) {
   const stockLines: RecipeLine[] = recipe.ingredientsUsed.map((row) => {
     const ingredient = ingredients.find((item) => item._id === String(row.ingredientId));
-    const qtyUnit = ingredient ? getDefaultRecipeQtyUnit(ingredient.unitRelation) : 'g';
+    const qtyUnit: RecipeQtyUnit = ingredient ? getDefaultRecipeQtyUnit(ingredient.unitRelation) : 'g';
+    const netAmount = ingredient
+      ? formatQtyForUnit(
+          row.netAmount,
+          qtyUnit,
+          normalizeUnitRelation(ingredient.unitRelation).conversionRatio
+        )
+      : String(row.netAmount);
 
     return {
       id: newRecipeLineId(),
       kind: 'stock',
       ingredientId: String(row.ingredientId),
-      netAmount: String(row.netAmount),
+      netAmount,
       qtyUnit,
       customLabel: '',
       customAmount: '',

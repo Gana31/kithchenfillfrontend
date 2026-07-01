@@ -1,5 +1,9 @@
 import { IngredientData } from '../inventory/inventoryApi';
 import {
+  formatQtyForUnit,
+  getDefaultRecipeQtyUnit,
+} from '../inventory/ingredientFormUtils';
+import {
   getRecipeQtyHint,
   normalizeUnitRelation,
   resolveIngredientPrice,
@@ -113,6 +117,14 @@ export function getIngredientUnitDisplay(ingredient: IngredientData) {
     purchaseLabel,
     qtyHint: getRecipeQtyHint(ingredient),
   };
+}
+
+export function formatRecipeLineQtyDisplay(netAmount: number, ingredient?: IngredientData): string {
+  if (!ingredient) return `${netAmount}`;
+  const unitRelation = normalizeUnitRelation(ingredient.unitRelation);
+  const qtyUnit = getDefaultRecipeQtyUnit(ingredient.unitRelation);
+  const formatted = formatQtyForUnit(netAmount, qtyUnit, unitRelation.conversionRatio);
+  return `${formatted} ${qtyUnit}`;
 }
 
 export function parseRecipeNameYield(name: string): { amount: number; unit: 'g' | 'ml' | 'pcs' } | null {

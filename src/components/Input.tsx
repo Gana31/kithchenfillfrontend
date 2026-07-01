@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, KeyboardTypeOptions, TouchableOpacity } from 'react-native';
+import { View, Text, KeyboardTypeOptions, TouchableOpacity } from 'react-native';
+import ScrollFormInput from './ScrollFormInput';
 import { useAppSelector } from '../store/store';
 import { selectIsDark } from '../store/themeSlice';
 import { COLORS } from '../config/constants';
@@ -35,7 +36,7 @@ export default function Input({
     <View className={`mb-5 w-full ${className}`}>
       <Text className="text-text dark:text-text-dark text-sm font-bold mb-2 tracking-wide">{label}</Text>
       <View className="relative w-full justify-center">
-        <TextInput
+        <ScrollFormInput
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}

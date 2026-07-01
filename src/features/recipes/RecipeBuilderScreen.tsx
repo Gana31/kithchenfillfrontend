@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { View, Text, RefreshControl, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, RefreshControl, TouchableOpacity, Alert, Pressable } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { CompositeNavigationProp, useNavigation } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -9,6 +9,7 @@ import SearchBar from '../../components/SearchBar';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors } from '../../hooks/useThemeColors';
 import ScreenContainer from '../../components/ScreenContainer';
+import SpacedStack from '../../components/SpacedStack';
 import HeaderIconButton from '../../components/HeaderIconButton';
 import { AsyncContent } from '../../components/AsyncStateViews';
 import { useDeleteRecipeMutation, useGetRecipesQuery, RecipeData } from './recipesApi';
@@ -17,6 +18,8 @@ import { OwnerRootStackParamList } from '../../navigation/ownerNavigation.types'
 import { filterRecipesBySearch } from './recipeFormUtils';
 import { useAppDispatch } from '../../store/store';
 import { showToast } from '../../store/toastSlice';
+import { useGetIngredientsQuery, STOCK_SORT_FETCH_LIMIT } from '../inventory/inventoryApi';
+import RecipePreviewModal from './components/RecipePreviewModal';
 
 type OwnerTabParamList = {
   Dashboard: undefined;
@@ -36,8 +39,21 @@ export default function RecipeBuilderScreen() {
   const dispatch = useAppDispatch();
   const { primary, muted, isDark } = useThemeColors();
   const [searchQuery, setSearchQuery] = useState('');
+  const [previewRecipe, setPreviewRecipe] = useState<RecipeData | null>(null);
   const { data, isLoading, isFetching, error, refetch } = useGetRecipesQuery();
   const [deleteRecipe, { isLoading: isDeleting }] = useDeleteRecipeMutation();
+  const { data: ingredientsData } = useGetIngredientsQuery(
+    {
+      page: 1,
+      limit: STOCK_SORT_FETCH_LIMIT,
+      search: '',
+      sortBy: 'name-asc',
+      stockFilter: 'all',
+    },
+    { refetchOnMountOrArgChange: 120 }
+  );
+
+  const ingredients = ingredientsData?.ingredients ?? [];
 
   const recipes = data?.recipes ?? [];
   const filteredRecipes = useMemo(
@@ -51,10 +67,19 @@ export default function RecipeBuilderScreen() {
 
   const openEditRecipe = useCallback(
     (recipeId: string) => {
+      setPreviewRecipe(null);
       navigation.navigate('AddRecipe', { recipeId });
     },
     [navigation]
   );
+
+  const openPreview = useCallback((recipe: RecipeData) => {
+    setPreviewRecipe(recipe);
+  }, []);
+
+  const closePreview = useCallback(() => {
+    setPreviewRecipe(null);
+  }, []);
 
   const confirmDelete = useCallback(
     (recipe: RecipeData) => {
@@ -149,7 +174,7 @@ export default function RecipeBuilderScreen() {
               </Text>
             </View>
           ) : (
-            <View style={{ gap: 16 }}>
+            <SpacedStack gap={16}>
               {filteredRecipes.map((recipe) => {
                 const costing = recipe.costing;
                 const batchCost = costing?.batchCost ?? 0;
@@ -159,32 +184,34 @@ export default function RecipeBuilderScreen() {
 
                 return (
                   <Card key={recipe._id} className="p-5">
-                    <View className="flex-row justify-between items-start">
-                      <View className="flex-grow pr-3">
-                        <Text className="text-base font-semibold text-text dark:text-text-dark leading-tight">
-                          {recipe.name}
-                        </Text>
-                        <View className="flex-row items-center mt-2 flex-wrap" style={{ gap: 12 }}>
-                          <View className="flex-row items-center" style={{ gap: 4 }}>
-                            <Ionicons name="leaf-outline" size={12} color={muted} />
-                            <Text className="text-[11px] text-muted dark:text-muted-dark font-bold">
-                              {itemCount} items
-                            </Text>
-                          </View>
-                          <View className="flex-row items-center" style={{ gap: 4 }}>
-                            <Ionicons name="scale-outline" size={12} color={muted} />
-                            <Text className="text-[11px] text-muted dark:text-muted-dark font-bold">
-                              Yield: {yieldLabel}
-                            </Text>
+                    <Pressable onPress={() => openPreview(recipe)}>
+                      <View className="flex-row justify-between items-start">
+                        <View className="flex-grow pr-3">
+                          <Text className="text-base font-semibold text-text dark:text-text-dark leading-tight">
+                            {recipe.name}
+                          </Text>
+                          <View className="flex-row items-center mt-2 flex-wrap" style={{ gap: 12 }}>
+                            <View className="flex-row items-center" style={{ gap: 4 }}>
+                              <Ionicons name="leaf-outline" size={12} color={muted} />
+                              <Text className="text-[11px] text-muted dark:text-muted-dark font-bold">
+                                {itemCount} items
+                              </Text>
+                            </View>
+                            <View className="flex-row items-center" style={{ gap: 4 }}>
+                              <Ionicons name="scale-outline" size={12} color={muted} />
+                              <Text className="text-[11px] text-muted dark:text-muted-dark font-bold">
+                                Yield: {yieldLabel}
+                              </Text>
+                            </View>
                           </View>
                         </View>
-                      </View>
 
-                      <View className="items-end">
-                        <Text className="text-xs text-muted dark:text-muted-dark font-bold uppercase">Total cost</Text>
-                        <Text className="text-lg font-semibold text-primary mt-0.5">{formatInr(batchCost)}</Text>
+                        <View className="items-end">
+                          <Text className="text-xs text-muted dark:text-muted-dark font-bold uppercase">Total cost</Text>
+                          <Text className="text-lg font-semibold text-primary mt-0.5">{formatInr(batchCost)}</Text>
+                        </View>
                       </View>
-                    </View>
+                    </Pressable>
 
                     <View
                       className="flex-row items-center justify-end mt-4 pt-3 border-t border-border/30 dark:border-border-dark/30"
@@ -212,10 +239,18 @@ export default function RecipeBuilderScreen() {
                   </Card>
                 );
               })}
-            </View>
+            </SpacedStack>
           )}
         </AsyncContent>
       </ScreenContainer>
+
+      <RecipePreviewModal
+        visible={previewRecipe !== null}
+        recipe={previewRecipe}
+        ingredients={ingredients}
+        onClose={closePreview}
+        onEdit={openEditRecipe}
+      />
     </>
   );
 }

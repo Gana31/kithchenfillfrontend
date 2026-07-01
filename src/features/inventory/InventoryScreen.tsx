@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect } from 'react';
 import {
   View,
   BackHandler,
@@ -6,14 +6,18 @@ import {
   ListRenderItem,
   ViewStyle,
   CellRendererProps,
+  FlatList,
+  ActivityIndicator,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
 } from 'react-native';
-import { FlatList } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useIsFocused } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { useThemeColors } from '../../hooks/useThemeColors';
-import { IngredientData } from './inventoryApi';
-import IngredientCard from './components/IngredientCard';
-import IngredientGridCard from './components/IngredientGridCard';
+import { IngredientData, INGREDIENTS_PAGE_SIZE } from './inventoryApi';
+import InventoryListItem from './components/InventoryListItem';
+import InventoryGridRow from './components/InventoryGridRow';
 import InventoryToolbar from './components/InventoryToolbar';
 import InventorySortMenu from './components/InventorySortMenu';
 import InventoryListStates from './components/InventoryListStates';
@@ -21,6 +25,7 @@ import AddIngredientModal from './components/AddIngredientModal';
 import AdjustStockModal from './components/AdjustStockModal';
 import ConfirmModal from '../../components/ConfirmModal';
 import ScreenContainer from '../../components/ScreenContainer';
+import { SCROLL_LIST_PROPS } from '../../components/scrollUtils';
 import { ListLoadMoreFooter } from '../../components/AsyncStateViews';
 import { useGridSelection, GridSelectionState } from './hooks/useGridSelection';
 import { useDebouncedStockAdjust } from './hooks/useDebouncedStockAdjust';
@@ -30,17 +35,19 @@ import { useInventoryDeleteActions } from './hooks/useInventoryDeleteActions';
 import { useInventoryHeader } from './hooks/useInventoryHeader';
 import {
   SortOption,
+  StockLevelFilter,
   getGridCardWidth,
   getGridCardHeight,
-  GRID_COLUMNS,
   GRID_GAP,
   GRID_HORIZONTAL_PADDING,
+  getListItemLayout,
 } from './inventoryUtils';
 
 export default function InventoryScreen({ navigation }: any) {
+  const isFocused = useIsFocused();
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
-  const { isDark } = useThemeColors();
+  const { isDark, primary } = useThemeColors();
   const cardWidth = getGridCardWidth(screenWidth);
 
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -48,6 +55,8 @@ export default function InventoryScreen({ navigation }: any) {
   const [isAdjustModalVisible, setIsAdjustModalVisible] = useState(false);
   const [adjustingIngredient, setAdjustingIngredient] = useState<IngredientData | null>(null);
   const [showSortMenu, setShowSortMenu] = useState(false);
+  const [stockFilter, setStockFilter] = useState<StockLevelFilter>('all');
+  const [filterTransitionPending, setFilterTransitionPending] = useState(false);
   const [selectionClearToken, setSelectionClearToken] = useState(0);
   const [gridSelection, setGridSelection] = useState<GridSelectionState>({
     active: false,
@@ -58,6 +67,8 @@ export default function InventoryScreen({ navigation }: any) {
 
   const listRef = useRef<FlatList<IngredientData>>(null);
   const gridRef = useRef<FlatList<GridRowData>>(null);
+  const listScrollOffsetRef = useRef(0);
+  const gridScrollOffsetRef = useRef(0);
 
   const { prefsLoaded, layout, sortBy, stockLevelSort, handleLayoutChange, handleSortChange } =
     useInventoryPreferences();
@@ -88,9 +99,17 @@ export default function InventoryScreen({ navigation }: any) {
     prefsLoaded,
     sortBy,
     stockLevelSort,
+    stockFilter,
+    filterTransitionPending,
+    isScreenFocused: isFocused,
     getPendingDelta,
     pendingVersion,
   });
+
+  const displayIngredientsRef = useRef(displayIngredients);
+  displayIngredientsRef.current = displayIngredients;
+  const isSyncingRef = useRef(isSyncing);
+  isSyncingRef.current = isSyncing;
 
   const bumpSelectionClear = useCallback(() => setSelectionClearToken((t) => t + 1), []);
 
@@ -118,6 +137,8 @@ export default function InventoryScreen({ navigation }: any) {
     [cardWidth, grid.selectionMode]
   );
 
+  const gridItemStride = gridCardHeight + GRID_GAP;
+
   const onLayoutChange = useCallback(
     (newLayout: typeof layout) => {
       suppressLoadMore();
@@ -129,18 +150,42 @@ export default function InventoryScreen({ navigation }: any) {
     [suppressLoadMore, gridSelection.active, bumpSelectionClear, handleLayoutChange]
   );
 
+  const scrollInventoryToTop = useCallback(() => {
+    if (layout === 'grid') {
+      gridRef.current?.scrollToOffset({ offset: 0, animated: false });
+    } else {
+      listRef.current?.scrollToOffset({ offset: 0, animated: false });
+    }
+  }, [layout]);
+
   const onAddPress = useCallback(() => {
     setEditingIngredient(null);
     setIsModalVisible(true);
   }, []);
+
+  const applyStockFilter = useCallback(
+    (filter: StockLevelFilter) => {
+      setFilterTransitionPending(true);
+      setStockFilter(filter);
+      setShowSortMenu(false);
+      scrollInventoryToTop();
+    },
+    [scrollInventoryToTop]
+  );
+
+  const onLowStockPress = useCallback(() => {
+    applyStockFilter(stockFilter === 'low' ? 'all' : 'low');
+  }, [applyStockFilter, stockFilter]);
 
   useInventoryHeader({
     navigation,
     prefsLoaded,
     layout,
     lowStockCount,
+    lowFilterActive: stockFilter === 'low',
     onLayoutChange,
     onAddPress,
+    onLowStockPress,
   });
 
   const handleRefresh = useCallback(() => {
@@ -188,6 +233,19 @@ export default function InventoryScreen({ navigation }: any) {
     [handleSortChange]
   );
 
+  const onStockFilterChange = useCallback(
+    (filter: StockLevelFilter) => {
+      applyStockFilter(filter);
+    },
+    [applyStockFilter]
+  );
+
+  useLayoutEffect(() => {
+    if (filterTransitionPending && hasLoadedInventory && !isFetching) {
+      setFilterTransitionPending(false);
+    }
+  }, [filterTransitionPending, hasLoadedInventory, isFetching]);
+
   const openEdit = useCallback((item: IngredientData) => {
     setEditingIngredient(item);
     setIsModalVisible(true);
@@ -198,23 +256,84 @@ export default function InventoryScreen({ navigation }: any) {
     setIsAdjustModalVisible(true);
   }, []);
 
+  const openEditById = useCallback((id: string) => {
+    const item = displayIngredientsRef.current.find((entry) => entry._id === id);
+    if (item) openEdit(item);
+  }, [openEdit]);
+
+  const openAdjustById = useCallback((id: string) => {
+    const item = displayIngredientsRef.current.find((entry) => entry._id === id);
+    if (item) openAdjust(item);
+  }, [openAdjust]);
+
+  const deleteById = useCallback(
+    (id: string) => {
+      const item = displayIngredientsRef.current.find((entry) => entry._id === id);
+      if (item) deleteActions.requestDelete(item);
+    },
+    [deleteActions.requestDelete]
+  );
+
+  const readIsSyncing = useCallback((id: string) => isSyncingRef.current(id), []);
+
+  useEffect(() => {
+    if (isFocused) {
+      enableLoadMore();
+    }
+  }, [isFocused, enableLoadMore]);
+
+  const handleListScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    listScrollOffsetRef.current = event.nativeEvent.contentOffset.y;
+  }, []);
+
+  const handleGridScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    gridScrollOffsetRef.current = event.nativeEvent.contentOffset.y;
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!isFocused) return;
+
+    const frame = requestAnimationFrame(() => {
+      if (layout === 'grid') {
+        gridRef.current?.scrollToOffset({
+          offset: gridScrollOffsetRef.current,
+          animated: false,
+        });
+      } else {
+        listRef.current?.scrollToOffset({
+          offset: listScrollOffsetRef.current,
+          animated: false,
+        });
+      }
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [isFocused, layout]);
+
   const handleScrollBegin = useCallback(() => {
+    if (!isFocused) return;
     enableLoadMore();
     setShowSortMenu(false);
-  }, [enableLoadMore]);
+  }, [isFocused, enableLoadMore]);
 
   const horizontalPadding = layout === 'grid' ? GRID_HORIZONTAL_PADDING : 24;
+
+  const isListLoading = isInitialInventoryLoading;
+  const showFilterOverlay =
+    filterTransitionPending && !isManualRefreshing && (isFetching || !hasLoadedInventory);
 
   const listEmpty = useMemo(
     () => (
       <InventoryListStates
         isInitialLoading={isInitialInventoryLoading}
+        isQueryReloading={false}
         error={error}
         onRetry={handleRefresh}
         hasLoadedInventory={hasLoadedInventory}
         totalCount={totalCount}
         debouncedSearch={debouncedSearch}
         searchQuery={searchQuery}
+        stockFilter={stockFilter}
         displayCount={displayIngredients.length}
         isFetching={isFetching}
       />
@@ -227,6 +346,7 @@ export default function InventoryScreen({ navigation }: any) {
       totalCount,
       debouncedSearch,
       searchQuery,
+      stockFilter,
       displayIngredients.length,
       isFetching,
     ]
@@ -234,6 +354,7 @@ export default function InventoryScreen({ navigation }: any) {
 
   const sharedContentContainerStyle = useMemo((): ViewStyle => ({
     width: '100%',
+    flexGrow: 1,
     paddingHorizontal: horizontalPadding,
     paddingTop: 8,
     paddingBottom: insets.bottom + 120,
@@ -241,62 +362,45 @@ export default function InventoryScreen({ navigation }: any) {
 
   const renderListItem: ListRenderItem<IngredientData> = useCallback(
     ({ item }) => (
-      <IngredientCard
+      <InventoryListItem
         ingredient={item}
-        isUpdating={isSyncing(item._id)}
-        onEdit={() => openEdit(item)}
-        onAdjust={() => openAdjust(item)}
-        onStepAdjust={(type, baseAmount) => handleStepAdjust(item._id, type, baseAmount)}
-        onDelete={() => deleteActions.requestDelete(item)}
+        isUpdating={readIsSyncing(item._id)}
+        onEditById={openEditById}
+        onAdjustById={openAdjustById}
+        onDeleteById={deleteById}
+        onStepAdjust={handleStepAdjust}
       />
     ),
-    [isSyncing, handleStepAdjust, openEdit, openAdjust, deleteActions.requestDelete, pendingVersion]
+    [readIsSyncing, openEditById, openAdjustById, deleteById, handleStepAdjust]
   );
 
   const renderGridRow: ListRenderItem<GridRowData> = useCallback(
-    ({ item: row }) => {
-      const emptySlots = GRID_COLUMNS - row.items.length;
-      const spacerWidth = emptySlots > 0 ? emptySlots * cardWidth + (emptySlots - 1) * GRID_GAP : 0;
-
-      return (
-        <View style={{ width: '100%', height: gridCardHeight, marginBottom: GRID_GAP }} collapsable={false}>
-          <View
-            style={{ flexDirection: 'row', gap: GRID_GAP, width: '100%', height: gridCardHeight, alignItems: 'stretch' }}
-            collapsable={false}
-          >
-            {row.items.map((item) => (
-              <IngredientGridCard
-                key={item._id}
-                ingredient={item}
-                cardWidth={cardWidth}
-                cardHeight={gridCardHeight}
-                isUpdating={isSyncing(item._id)}
-                selectionMode={grid.selectionMode}
-                isSelected={grid.selectedIds.has(item._id)}
-                onEdit={openEdit}
-                onLongPress={grid.enterSelectionWith}
-                onToggleSelect={grid.toggleSelect}
-                onStepAdjust={handleStepAdjust}
-              />
-            ))}
-            {spacerWidth > 0 ? (
-              <View style={{ width: spacerWidth, height: gridCardHeight }} collapsable={false} />
-            ) : null}
-          </View>
-        </View>
-      );
-    },
+    ({ item: row }) => (
+      <InventoryGridRow
+        row={row}
+        cardWidth={cardWidth}
+        gridCardHeight={gridCardHeight}
+        gridItemStride={gridItemStride}
+        selectionMode={grid.selectionMode}
+        selectedIds={grid.selectedIds}
+        isSyncing={readIsSyncing}
+        onEdit={openEdit}
+        onLongPress={grid.enterSelectionWith}
+        onToggleSelect={grid.toggleSelect}
+        onStepAdjust={handleStepAdjust}
+      />
+    ),
     [
       cardWidth,
       gridCardHeight,
+      gridItemStride,
       grid.selectionMode,
-      grid.selectedIds,
-      isSyncing,
+      grid.selectionTick,
+      readIsSyncing,
       openEdit,
       grid.enterSelectionWith,
       grid.toggleSelect,
       handleStepAdjust,
-      pendingVersion,
     ]
   );
 
@@ -309,8 +413,98 @@ export default function InventoryScreen({ navigation }: any) {
     []
   );
 
-  const listData = isInitialInventoryLoading ? [] : displayIngredients;
-  const gridData = isInitialInventoryLoading ? [] : gridRows;
+  const listData = isListLoading ? [] : displayIngredients;
+  const gridData = isListLoading ? [] : gridRows;
+  const listItemCount = listData.length;
+  const gridRowCount = gridData.length;
+
+  const listExtraData = pendingVersion;
+  const gridExtraData = useMemo(
+    () => `${grid.selectionTick}-${pendingVersion}`,
+    [grid.selectionTick, pendingVersion]
+  );
+
+  /** Up to 100 rows: mount all while tab is focused (no blank on fast scroll). Tab blur unmounts the list. */
+  const inventoryListProps = useMemo(() => {
+    const renderAllRows = listItemCount > 0 && listItemCount <= INGREDIENTS_PAGE_SIZE;
+
+    if (renderAllRows) {
+      return {
+        ...SCROLL_LIST_PROPS,
+        removeClippedSubviews: false,
+        disableVirtualization: true,
+        initialNumToRender: listItemCount,
+        maxToRenderPerBatch: listItemCount,
+        windowSize: 21,
+        updateCellsBatchingPeriod: 16,
+      };
+    }
+
+    return {
+      ...SCROLL_LIST_PROPS,
+      removeClippedSubviews: false,
+      windowSize: 11,
+      initialNumToRender: 14,
+      maxToRenderPerBatch: 10,
+      updateCellsBatchingPeriod: 16,
+    };
+  }, [listItemCount]);
+
+  const gridPerfProps = useMemo(() => {
+    const renderAllRows = gridRowCount > 0 && gridRowCount <= Math.ceil(INGREDIENTS_PAGE_SIZE / 3);
+
+    if (renderAllRows) {
+      return {
+        ...SCROLL_LIST_PROPS,
+        removeClippedSubviews: false,
+        disableVirtualization: true,
+        initialNumToRender: gridRowCount,
+        maxToRenderPerBatch: gridRowCount,
+        windowSize: 15,
+        updateCellsBatchingPeriod: 16,
+      };
+    }
+
+    return {
+      ...SCROLL_LIST_PROPS,
+      removeClippedSubviews: false,
+      windowSize: 9,
+      initialNumToRender: 10,
+      maxToRenderPerBatch: 8,
+      updateCellsBatchingPeriod: 16,
+    };
+  }, [gridRowCount]);
+
+  const getGridItemLayout = useCallback(
+    (_data: ArrayLike<GridRowData> | null | undefined, index: number) => ({
+      length: gridItemStride,
+      offset: gridItemStride * index,
+      index,
+    }),
+    [gridItemStride]
+  );
+
+  const listEndReached = isFocused && !isManualRefreshing ? loadMore : undefined;
+
+  const filterOverlay = showFilterOverlay ? (
+    <View
+      pointerEvents="none"
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0,0,0,0.18)',
+        justifyContent: 'center',
+        alignItems: 'center',
+      }}
+    >
+      <View className="bg-card dark:bg-card-dark rounded-2xl px-5 py-4 items-center border border-border dark:border-border-dark">
+        <ActivityIndicator size="small" color={primary} />
+      </View>
+    </View>
+  ) : null;
 
   return (
     <ScreenContainer>
@@ -323,6 +517,7 @@ export default function InventoryScreen({ navigation }: any) {
         isRefreshing={isManualRefreshing}
         onRefresh={handleRefresh}
         showSortMenu={showSortMenu}
+        filterActive={stockFilter !== 'all'}
         onToggleSortMenu={() => setShowSortMenu((prev) => !prev)}
         showGridSelection={gridSelection.active && layout === 'grid'}
         gridSelection={gridSelection}
@@ -334,67 +529,65 @@ export default function InventoryScreen({ navigation }: any) {
       <InventorySortMenu
         visible={showSortMenu}
         sortBy={sortBy}
+        stockFilter={stockFilter}
         horizontalPadding={horizontalPadding}
         topInset={insets.top}
         onClose={() => setShowSortMenu(false)}
         onSortChange={onSortChange}
+        onStockFilterChange={onStockFilterChange}
       />
 
-      {layout === 'grid' ? (
-        <View style={{ flex: 1, width: '100%' }} collapsable={false}>
-          <FlatList
-            ref={gridRef}
-            style={{ flex: 1, width: '100%' }}
-            data={gridData}
-            extraData={{ selectionTick: grid.selectionTick, pendingVersion, sortBy, listSortKey }}
-            keyExtractor={(item) => item.id}
-            renderItem={renderGridRow}
-            CellRendererComponent={renderFullWidthCell}
-            ListEmptyComponent={listEmpty}
-            ListFooterComponent={<ListLoadMoreFooter visible={isLoadingMore} />}
-            contentContainerStyle={sharedContentContainerStyle}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            nestedScrollEnabled
-            scrollEventThrottle={16}
-            onScrollBeginDrag={handleScrollBegin}
-            onMomentumScrollBegin={handleScrollBegin}
-            onEndReached={isManualRefreshing ? undefined : loadMore}
-            onEndReachedThreshold={0.2}
-            removeClippedSubviews={false}
-            maxToRenderPerBatch={6}
-            updateCellsBatchingPeriod={1}
-            windowSize={9}
-            initialNumToRender={6}
-          />
-        </View>
+      {isFocused ? (
+        layout === 'grid' ? (
+          <View style={{ flex: 1, width: '100%' }} collapsable={false}>
+            <FlatList
+              ref={gridRef}
+              key={`inventory-grid-${gridCardHeight}`}
+              style={{ flex: 1, width: '100%', backgroundColor: 'transparent' }}
+              data={gridData}
+              extraData={gridExtraData}
+              keyExtractor={(item) => item.id}
+              renderItem={renderGridRow}
+              CellRendererComponent={renderFullWidthCell}
+              getItemLayout={getGridItemLayout}
+              ListEmptyComponent={listEmpty}
+              ListFooterComponent={<ListLoadMoreFooter visible={isLoadingMore} />}
+              contentContainerStyle={sharedContentContainerStyle}
+              onScroll={handleGridScroll}
+              onScrollBeginDrag={handleScrollBegin}
+              onMomentumScrollBegin={handleScrollBegin}
+              onEndReached={listEndReached}
+              onEndReachedThreshold={0.4}
+              {...gridPerfProps}
+            />
+            {filterOverlay}
+          </View>
+        ) : (
+          <View style={{ flex: 1, width: '100%' }} collapsable={false}>
+            <FlatList
+              ref={listRef}
+              key="inventory-list"
+              style={{ flex: 1, width: '100%', backgroundColor: 'transparent' }}
+              data={listData}
+              extraData={listExtraData}
+              keyExtractor={(item) => item._id}
+              renderItem={renderListItem}
+              getItemLayout={getListItemLayout}
+              ListEmptyComponent={listEmpty}
+              ListFooterComponent={<ListLoadMoreFooter visible={isLoadingMore} />}
+              contentContainerStyle={sharedContentContainerStyle}
+              onScroll={handleListScroll}
+              onScrollBeginDrag={handleScrollBegin}
+              onMomentumScrollBegin={handleScrollBegin}
+              onEndReached={listEndReached}
+              onEndReachedThreshold={0.4}
+              {...inventoryListProps}
+            />
+            {filterOverlay}
+          </View>
+        )
       ) : (
-        <FlatList
-          ref={listRef}
-          key="inventory-list"
-          style={{ flex: 1, width: '100%' }}
-          data={listData}
-          extraData={{ pendingVersion, sortBy, listSortKey }}
-          keyExtractor={(item) => item._id}
-          renderItem={renderListItem}
-          ListEmptyComponent={listEmpty}
-          ListFooterComponent={<ListLoadMoreFooter visible={isLoadingMore} />}
-          contentContainerStyle={sharedContentContainerStyle}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          nestedScrollEnabled
-          scrollEventThrottle={16}
-          onScrollBeginDrag={handleScrollBegin}
-          onMomentumScrollBegin={handleScrollBegin}
-          onEndReached={isManualRefreshing ? undefined : loadMore}
-          onEndReachedThreshold={0.2}
-          removeClippedSubviews={false}
-          maxToRenderPerBatch={10}
-          updateCellsBatchingPeriod={1}
-          windowSize={11}
-          initialNumToRender={10}
-          ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
-        />
+        <View style={{ flex: 1, width: '100%' }} collapsable={false} />
       )}
 
       <AddIngredientModal
