@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect } from 'react';
 import {
   View,
+  Text,
+  TouchableOpacity,
   BackHandler,
   useWindowDimensions,
   ListRenderItem,
@@ -11,21 +13,28 @@ import {
   NativeScrollEvent,
   NativeSyntheticEvent,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useIsFocused } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { useThemeColors } from '../../hooks/useThemeColors';
-import { IngredientData, INGREDIENTS_PAGE_SIZE } from './inventoryApi';
+import { IngredientData } from './inventoryApi';
 import InventoryListItem from './components/InventoryListItem';
 import InventoryGridRow from './components/InventoryGridRow';
 import InventoryToolbar from './components/InventoryToolbar';
 import InventorySortMenu from './components/InventorySortMenu';
 import InventoryListStates from './components/InventoryListStates';
+import FolderGrid from './components/FolderGrid';
 import AddIngredientModal from './components/AddIngredientModal';
 import AdjustStockModal from './components/AdjustStockModal';
 import ConfirmModal from '../../components/ConfirmModal';
 import ScreenContainer from '../../components/ScreenContainer';
-import { SCROLL_LIST_PROPS } from '../../components/scrollUtils';
+import {
+  SCROLL_LIST_PROPS,
+  SCROLL_GAP_TOUCH,
+  LIST_VIRTUALIZATION_PROPS,
+  GRID_VIRTUALIZATION_PROPS,
+} from '../../components/scrollUtils';
 import { ListLoadMoreFooter } from '../../components/AsyncStateViews';
 import { useGridSelection, GridSelectionState } from './hooks/useGridSelection';
 import { useDebouncedStockAdjust } from './hooks/useDebouncedStockAdjust';
@@ -33,6 +42,7 @@ import { useInventoryPreferences } from './hooks/useInventoryPreferences';
 import { useInventoryList, GridRowData } from './hooks/useInventoryList';
 import { useInventoryDeleteActions } from './hooks/useInventoryDeleteActions';
 import { useInventoryHeader } from './hooks/useInventoryHeader';
+import FloatingActionButton from '../../components/FloatingActionButton';
 import {
   SortOption,
   StockLevelFilter,
@@ -47,7 +57,7 @@ export default function InventoryScreen({ navigation }: any) {
   const isFocused = useIsFocused();
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
-  const { isDark, primary } = useThemeColors();
+  const { isDark, primary, muted } = useThemeColors();
   const cardWidth = getGridCardWidth(screenWidth);
 
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -70,7 +80,7 @@ export default function InventoryScreen({ navigation }: any) {
   const listScrollOffsetRef = useRef(0);
   const gridScrollOffsetRef = useRef(0);
 
-  const { prefsLoaded, layout, sortBy, stockLevelSort, handleLayoutChange, handleSortChange } =
+  const { prefsLoaded, layout, grouped, sortBy, stockLevelSort, handleLayoutChange, handleGroupedChange, handleSortChange } =
     useInventoryPreferences();
 
   const { queueAdjust, getPendingDelta, isSyncing, pendingVersion } = useDebouncedStockAdjust();
@@ -184,18 +194,18 @@ export default function InventoryScreen({ navigation }: any) {
     lowStockCount,
     lowFilterActive: stockFilter === 'low',
     onLayoutChange,
-    onAddPress,
     onLowStockPress,
   });
 
   const handleRefresh = useCallback(() => {
+    if (grouped) return;
     if (layout === 'grid') {
       gridRef.current?.scrollToOffset({ offset: 0, animated: false });
     } else {
       listRef.current?.scrollToOffset({ offset: 0, animated: false });
     }
     refreshList(grid.clearSelection);
-  }, [layout, refreshList, grid.clearSelection]);
+  }, [grouped, layout, refreshList, grid.clearSelection]);
 
   useEffect(() => {
     const unsubscribe = (navigation as { addListener: (event: string, cb: () => void) => () => void }).addListener(
@@ -282,6 +292,8 @@ export default function InventoryScreen({ navigation }: any) {
     }
   }, [isFocused, enableLoadMore]);
 
+  // Record offset only when scrolling settles (drag/momentum end) instead of every
+  // frame — keeps the scroll thread free so it stays responsive. Used for tab-switch restore.
   const handleListScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
     listScrollOffsetRef.current = event.nativeEvent.contentOffset.y;
   }, []);
@@ -324,21 +336,24 @@ export default function InventoryScreen({ navigation }: any) {
 
   const listEmpty = useMemo(
     () => (
-      <InventoryListStates
-        isInitialLoading={isInitialInventoryLoading}
-        isQueryReloading={false}
-        error={error}
-        onRetry={handleRefresh}
-        hasLoadedInventory={hasLoadedInventory}
-        totalCount={totalCount}
-        debouncedSearch={debouncedSearch}
-        searchQuery={searchQuery}
-        stockFilter={stockFilter}
-        displayCount={displayIngredients.length}
-        isFetching={isFetching}
-      />
+      <View style={{ paddingHorizontal: horizontalPadding, flexGrow: 1 }}>
+        <InventoryListStates
+          isInitialLoading={isInitialInventoryLoading}
+          isQueryReloading={false}
+          error={error}
+          onRetry={handleRefresh}
+          hasLoadedInventory={hasLoadedInventory}
+          totalCount={totalCount}
+          debouncedSearch={debouncedSearch}
+          searchQuery={searchQuery}
+          stockFilter={stockFilter}
+          displayCount={displayIngredients.length}
+          isFetching={isFetching}
+        />
+      </View>
     ),
     [
+      horizontalPadding,
       isInitialInventoryLoading,
       error,
       handleRefresh,
@@ -352,18 +367,20 @@ export default function InventoryScreen({ navigation }: any) {
     ]
   );
 
+  // Horizontal inset lives on the rows (below), so the scroll surface itself spans edge to edge.
   const sharedContentContainerStyle = useMemo((): ViewStyle => ({
     width: '100%',
     flexGrow: 1,
-    paddingHorizontal: horizontalPadding,
     paddingTop: 8,
     paddingBottom: insets.bottom + 120,
-  }), [horizontalPadding, insets.bottom]);
+    ...SCROLL_GAP_TOUCH,
+  }), [insets.bottom]);
 
   const renderListItem: ListRenderItem<IngredientData> = useCallback(
     ({ item }) => (
       <InventoryListItem
         ingredient={item}
+        horizontalPadding={horizontalPadding}
         isUpdating={readIsSyncing(item._id)}
         onEditById={openEditById}
         onAdjustById={openAdjustById}
@@ -371,7 +388,7 @@ export default function InventoryScreen({ navigation }: any) {
         onStepAdjust={handleStepAdjust}
       />
     ),
-    [readIsSyncing, openEditById, openAdjustById, deleteById, handleStepAdjust]
+    [horizontalPadding, readIsSyncing, openEditById, openAdjustById, deleteById, handleStepAdjust]
   );
 
   const renderGridRow: ListRenderItem<GridRowData> = useCallback(
@@ -379,6 +396,7 @@ export default function InventoryScreen({ navigation }: any) {
       <InventoryGridRow
         row={row}
         cardWidth={cardWidth}
+        horizontalPadding={horizontalPadding}
         gridCardHeight={gridCardHeight}
         gridItemStride={gridItemStride}
         selectionMode={grid.selectionMode}
@@ -392,6 +410,7 @@ export default function InventoryScreen({ navigation }: any) {
     ),
     [
       cardWidth,
+      horizontalPadding,
       gridCardHeight,
       gridItemStride,
       grid.selectionMode,
@@ -415,8 +434,6 @@ export default function InventoryScreen({ navigation }: any) {
 
   const listData = isListLoading ? [] : displayIngredients;
   const gridData = isListLoading ? [] : gridRows;
-  const listItemCount = listData.length;
-  const gridRowCount = gridData.length;
 
   const listExtraData = pendingVersion;
   const gridExtraData = useMemo(
@@ -424,56 +441,20 @@ export default function InventoryScreen({ navigation }: any) {
     [grid.selectionTick, pendingVersion]
   );
 
-  /** Up to 100 rows: mount all while tab is focused (no blank on fast scroll). Tab blur unmounts the list. */
-  const inventoryListProps = useMemo(() => {
-    const renderAllRows = listItemCount > 0 && listItemCount <= INGREDIENTS_PAGE_SIZE;
+  /**
+   * Virtualize the list: keep only a small window of rows mounted so scrolling stays
+   * smooth even with remote images. Fixed row heights + getItemLayout prevent blank
+   * cells, and the tab freezes/unmounts offscreen so idle tabs cost nothing.
+   */
+  const inventoryListProps = useMemo(
+    () => ({ ...SCROLL_LIST_PROPS, ...LIST_VIRTUALIZATION_PROPS }),
+    []
+  );
 
-    if (renderAllRows) {
-      return {
-        ...SCROLL_LIST_PROPS,
-        removeClippedSubviews: false,
-        disableVirtualization: true,
-        initialNumToRender: listItemCount,
-        maxToRenderPerBatch: listItemCount,
-        windowSize: 21,
-        updateCellsBatchingPeriod: 16,
-      };
-    }
-
-    return {
-      ...SCROLL_LIST_PROPS,
-      removeClippedSubviews: false,
-      windowSize: 11,
-      initialNumToRender: 14,
-      maxToRenderPerBatch: 10,
-      updateCellsBatchingPeriod: 16,
-    };
-  }, [listItemCount]);
-
-  const gridPerfProps = useMemo(() => {
-    const renderAllRows = gridRowCount > 0 && gridRowCount <= Math.ceil(INGREDIENTS_PAGE_SIZE / 3);
-
-    if (renderAllRows) {
-      return {
-        ...SCROLL_LIST_PROPS,
-        removeClippedSubviews: false,
-        disableVirtualization: true,
-        initialNumToRender: gridRowCount,
-        maxToRenderPerBatch: gridRowCount,
-        windowSize: 15,
-        updateCellsBatchingPeriod: 16,
-      };
-    }
-
-    return {
-      ...SCROLL_LIST_PROPS,
-      removeClippedSubviews: false,
-      windowSize: 9,
-      initialNumToRender: 10,
-      maxToRenderPerBatch: 8,
-      updateCellsBatchingPeriod: 16,
-    };
-  }, [gridRowCount]);
+  const gridPerfProps = useMemo(
+    () => ({ ...SCROLL_LIST_PROPS, ...GRID_VIRTUALIZATION_PROPS }),
+    []
+  );
 
   const getGridItemLayout = useCallback(
     (_data: ArrayLike<GridRowData> | null | undefined, index: number) => ({
@@ -510,35 +491,70 @@ export default function InventoryScreen({ navigation }: any) {
     <ScreenContainer>
       <StatusBar style={isDark ? 'light' : 'dark'} />
 
-      <InventoryToolbar
-        horizontalPadding={horizontalPadding}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        isRefreshing={isManualRefreshing}
-        onRefresh={handleRefresh}
-        showSortMenu={showSortMenu}
-        filterActive={stockFilter !== 'all'}
-        onToggleSortMenu={() => setShowSortMenu((prev) => !prev)}
-        showGridSelection={gridSelection.active && layout === 'grid'}
-        gridSelection={gridSelection}
-        onClearSelection={grid.clearSelection}
-        onSelectAll={grid.selectAll}
-        onDeleteSelected={grid.deleteSelected}
-      />
+      {prefsLoaded ? (
+        <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 }}>
+          <View className="flex-row bg-card dark:bg-card-dark border border-border dark:border-border-dark rounded-2xl p-1">
+            <TouchableOpacity
+              onPress={() => handleGroupedChange(false)}
+              activeOpacity={0.8}
+              className={`flex-1 flex-row items-center justify-center py-2 rounded-xl ${!grouped ? 'bg-primary/15' : ''}`}
+              style={{ gap: 6 }}
+            >
+              <Ionicons name="cube-outline" size={16} color={!grouped ? primary : muted} />
+              <Text className={`text-xs font-bold ${!grouped ? 'text-primary' : 'text-muted dark:text-muted-dark'}`}>
+                Ingredients
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => handleGroupedChange(true)}
+              activeOpacity={0.8}
+              className={`flex-1 flex-row items-center justify-center py-2 rounded-xl ${grouped ? 'bg-primary/15' : ''}`}
+              style={{ gap: 6 }}
+            >
+              <Ionicons name="folder-outline" size={16} color={grouped ? primary : muted} />
+              <Text className={`text-xs font-bold ${grouped ? 'text-primary' : 'text-muted dark:text-muted-dark'}`}>
+                Folders
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : null}
 
-      <InventorySortMenu
-        visible={showSortMenu}
-        sortBy={sortBy}
-        stockFilter={stockFilter}
-        horizontalPadding={horizontalPadding}
-        topInset={insets.top}
-        onClose={() => setShowSortMenu(false)}
-        onSortChange={onSortChange}
-        onStockFilterChange={onStockFilterChange}
-      />
+      {!grouped ? (
+        <InventoryToolbar
+          horizontalPadding={horizontalPadding}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          isRefreshing={isManualRefreshing}
+          onRefresh={handleRefresh}
+          showSortMenu={showSortMenu}
+          filterActive={stockFilter !== 'all'}
+          onToggleSortMenu={() => setShowSortMenu((prev) => !prev)}
+          showGridSelection={gridSelection.active && layout === 'grid'}
+          gridSelection={gridSelection}
+          onClearSelection={grid.clearSelection}
+          onSelectAll={grid.selectAll}
+          onDeleteSelected={grid.deleteSelected}
+        />
+      ) : null}
+
+      {!grouped ? (
+        <InventorySortMenu
+          visible={showSortMenu}
+          sortBy={sortBy}
+          stockFilter={stockFilter}
+          horizontalPadding={horizontalPadding}
+          topInset={insets.top}
+          onClose={() => setShowSortMenu(false)}
+          onSortChange={onSortChange}
+          onStockFilterChange={onStockFilterChange}
+        />
+      ) : null}
 
       {isFocused ? (
-        layout === 'grid' ? (
+        grouped ? (
+          <FolderGrid navigation={navigation} layout={layout} />
+        ) : layout === 'grid' ? (
           <View style={{ flex: 1, width: '100%' }} collapsable={false}>
             <FlatList
               ref={gridRef}
@@ -553,7 +569,8 @@ export default function InventoryScreen({ navigation }: any) {
               ListEmptyComponent={listEmpty}
               ListFooterComponent={<ListLoadMoreFooter visible={isLoadingMore} />}
               contentContainerStyle={sharedContentContainerStyle}
-              onScroll={handleGridScroll}
+              onScrollEndDrag={handleGridScroll}
+              onMomentumScrollEnd={handleGridScroll}
               onScrollBeginDrag={handleScrollBegin}
               onMomentumScrollBegin={handleScrollBegin}
               onEndReached={listEndReached}
@@ -576,7 +593,8 @@ export default function InventoryScreen({ navigation }: any) {
               ListEmptyComponent={listEmpty}
               ListFooterComponent={<ListLoadMoreFooter visible={isLoadingMore} />}
               contentContainerStyle={sharedContentContainerStyle}
-              onScroll={handleListScroll}
+              onScrollEndDrag={handleListScroll}
+              onMomentumScrollEnd={handleListScroll}
               onScrollBeginDrag={handleScrollBegin}
               onMomentumScrollBegin={handleScrollBegin}
               onEndReached={listEndReached}
@@ -589,6 +607,10 @@ export default function InventoryScreen({ navigation }: any) {
       ) : (
         <View style={{ flex: 1, width: '100%' }} collapsable={false} />
       )}
+
+      {!grouped && !gridSelection.active ? (
+        <FloatingActionButton onPress={onAddPress} icon="add" />
+      ) : null}
 
       <AddIngredientModal
         visible={isModalVisible}

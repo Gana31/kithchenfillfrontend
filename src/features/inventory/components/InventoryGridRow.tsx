@@ -3,11 +3,13 @@ import { View } from 'react-native';
 import { IngredientData } from '../inventoryApi';
 import { GridRowData } from '../hooks/useInventoryList';
 import { GRID_COLUMNS, GRID_GAP } from '../inventoryUtils';
+import { SCROLL_GAP_TOUCH } from '../../../components/scrollUtils';
 import IngredientGridCard from './IngredientGridCard';
 
 export interface InventoryGridRowProps {
   row: GridRowData;
   cardWidth: number;
+  horizontalPadding: number;
   gridCardHeight: number;
   gridItemStride: number;
   selectionMode: boolean;
@@ -22,6 +24,7 @@ export interface InventoryGridRowProps {
 function InventoryGridRow({
   row,
   cardWidth,
+  horizontalPadding,
   gridCardHeight,
   gridItemStride,
   selectionMode,
@@ -37,7 +40,13 @@ function InventoryGridRow({
 
   return (
     <View
-      style={{ width: '100%', height: gridItemStride, paddingBottom: GRID_GAP }}
+      style={{
+        width: '100%',
+        height: gridItemStride,
+        paddingBottom: GRID_GAP,
+        paddingHorizontal: horizontalPadding,
+        ...SCROLL_GAP_TOUCH,
+      }}
       collapsable={false}
     >
       <View
@@ -47,7 +56,7 @@ function InventoryGridRow({
         {row.items.map((item, index) => (
           <View
             key={item._id}
-            style={{ paddingRight: index < row.items.length - 1 ? GRID_GAP : 0 }}
+            style={{ paddingRight: index < row.items.length - 1 ? GRID_GAP : 0, ...SCROLL_GAP_TOUCH }}
           >
             <IngredientGridCard
               ingredient={item}
@@ -64,7 +73,7 @@ function InventoryGridRow({
           </View>
         ))}
         {spacerWidth > 0 ? (
-          <View style={{ width: spacerWidth, height: gridCardHeight }} collapsable={false} />
+          <View style={{ width: spacerWidth, height: gridCardHeight, ...SCROLL_GAP_TOUCH }} collapsable={false} />
         ) : null}
       </View>
     </View>
@@ -92,6 +101,7 @@ function propsAreEqual(prev: InventoryGridRowProps, next: InventoryGridRowProps)
   if (
     prev.row.id !== next.row.id ||
     prev.cardWidth !== next.cardWidth ||
+    prev.horizontalPadding !== next.horizontalPadding ||
     prev.gridCardHeight !== next.gridCardHeight ||
     prev.gridItemStride !== next.gridItemStride ||
     prev.selectionMode !== next.selectionMode ||

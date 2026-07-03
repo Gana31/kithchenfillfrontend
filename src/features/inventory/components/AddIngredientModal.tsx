@@ -34,6 +34,7 @@ import {
 import { parseDecimalInput } from '../../dashboard/dashboardUtils';
 import { getInventoryQtyPlaceholder } from '../../inventory/inventoryUtils';
 import InventoryQtyUnitToggle from './InventoryQtyUnitToggle';
+import FolderPicker from './FolderPicker';
 import { useThemeColors } from '../../../hooks/useThemeColors';
 import { compressImageForUpload } from '../../../utils/compressImage';
 import { useAppDispatch } from '../../../store/store';
@@ -43,6 +44,8 @@ interface AddIngredientModalProps {
   visible: boolean;
   onClose: () => void;
   ingredient?: IngredientData | null;
+  /** Pre-select this folder when adding a brand-new ingredient (e.g. from a folder screen). */
+  initialFolderId?: string | null;
 }
 
 const CATEGORIES = [
@@ -58,7 +61,7 @@ const CATEGORIES = [
   { name: 'Pantry', icon: '🥫' }
 ];
 
-export default function AddIngredientModal({ visible, onClose, ingredient }: AddIngredientModalProps) {
+export default function AddIngredientModal({ visible, onClose, ingredient, initialFolderId = null }: AddIngredientModalProps) {
   const { muted, primary, border, card } = useThemeColors();
   const dispatch = useAppDispatch();
   const [createIngredient, { isLoading: isCreating }] = useCreateIngredientMutation();
@@ -68,6 +71,7 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
   // Form State
   const [name, setName] = useState('');
   const [category, setCategory] = useState('Pantry');
+  const [folderId, setFolderId] = useState<string | null>(null);
   const [unitCategory, setUnitCategory] = useState<UnitCategory>('weight');
   const [minThresholdInput, setMinThresholdInput] = useState('');
   const [initialQtyInput, setInitialQtyInput] = useState('');
@@ -90,6 +94,7 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
 
       setName(snapshot.name);
       setCategory(snapshot.category);
+      setFolderId(ingredient.folderId ?? null);
       setUnitCategory(snapshot.unitCategory);
       setMinThresholdInput(snapshot.minThresholdInput);
       setInitialQtyInput(snapshot.qtyInput);
@@ -101,6 +106,7 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
       initialSnapshotRef.current = null;
       setName('');
       setCategory('Pantry');
+      setFolderId(initialFolderId ?? null);
       setUnitCategory('weight');
       setMinThresholdInput('');
       setInitialQtyInput('');
@@ -110,7 +116,7 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
       setQtyUnit('kg');
     }
     setFormError('');
-  }, [ingredient, visible]);
+  }, [ingredient, visible, initialFolderId]);
 
   const pickImage = async () => {
     try {
@@ -267,6 +273,9 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
         if (category !== initial.category) {
           body.category = category;
         }
+        if (folderId !== (ingredient.folderId ?? null)) {
+          body.folderId = folderId;
+        }
 
         const unitsChanged =
           unitCategory !== initial.unitCategory ||
@@ -319,6 +328,7 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
         const result = await createIngredient({
           name: name.trim(),
           category,
+          folderId,
           minThreshold: baseThreshold,
           purchaseUnit,
           baseUnit,
@@ -512,6 +522,9 @@ export default function AddIngredientModal({ visible, onClose, ingredient }: Add
                   );
                 })}
               </ScrollView>
+
+              {/* Folder Selector */}
+              <FolderPicker value={folderId} onChange={setFolderId} />
 
               {/* Unit Category Selector */}
               <Text className="text-xs font-semibold text-text dark:text-text-dark mb-2 tracking-normal">

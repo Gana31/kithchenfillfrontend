@@ -12,6 +12,8 @@ export interface IngredientsQueryArgs {
   search: string;
   sortBy: SortOption;
   stockFilter: StockLevelFilter;
+  /** Folder id to filter by, or 'ungrouped' for unassigned, or undefined for all. */
+  folder?: string;
 }
 
 export interface IngredientsPageResponse {
@@ -40,6 +42,7 @@ export interface IngredientData {
   restaurantId: string;
   name: string;
   category?: string;
+  folderId?: string | null;
   currentStock: number;
   minThreshold: number;
   stockLevel?: StockLevel;
@@ -56,6 +59,7 @@ export interface IngredientData {
 export interface CreateIngredientPayload {
   name: string;
   category?: string;
+  folderId?: string | null;
   minThreshold: number;
   purchaseUnit: 'kg' | 'liter' | 'pack';
   baseUnit: 'g' | 'ml' | 'pcs';
@@ -68,6 +72,7 @@ export interface CreateIngredientPayload {
 export interface UpdateIngredientPayload {
   name?: string;
   category?: string;
+  folderId?: string | null;
   minThreshold?: number;
   purchaseUnit?: 'kg' | 'liter' | 'pack';
   baseUnit?: 'g' | 'ml' | 'pcs';
@@ -192,19 +197,21 @@ function ingredientsCacheKey(args: IngredientsQueryArgs): string {
   const stockLevelSort = isStockLevelSortOption(args.sortBy);
   const sortKey = stockLevelSort ? 'stock-level' : args.sortBy;
   const filterKey = args.stockFilter !== 'all' ? args.stockFilter : 'all';
-  return `${args.search}|${sortKey}|${filterKey}|${args.limit}`;
+  const folderKey = args.folder ? args.folder : 'all';
+  return `${args.search}|${sortKey}|${filterKey}|${folderKey}|${args.limit}`;
 }
 
 export const inventoryApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getIngredients: builder.query<IngredientsPageResponse, IngredientsQueryArgs>({
-      query: ({ page, limit, search, sortBy, stockFilter }) => ({
+      query: ({ page, limit, search, sortBy, stockFilter, folder }) => ({
         url: '/ingredients',
         params: {
           page,
           limit,
           search: search || undefined,
           stockLevel: stockFilter !== 'all' ? stockFilter : undefined,
+          folder: folder || undefined,
           sortBy:
             sortBy === 'stock-asc' || sortBy === 'stock-desc' ? 'name-asc' : sortBy,
         },
@@ -244,7 +251,7 @@ export const inventoryApi = baseApi.injectEndpoints({
         method: 'POST',
         body,
       }),
-      invalidatesTags: ['Ingredient'],
+      invalidatesTags: ['Ingredient', { type: 'Folder', id: 'LIST' }],
     }),
     updateIngredient: builder.mutation<{ success: boolean; message: string; ingredient: IngredientData }, { id: string; body: UpdateIngredientPayload }>({
       query: ({ id, body }) => ({
@@ -266,7 +273,11 @@ export const inventoryApi = baseApi.injectEndpoints({
           // Toast handled in UI
         }
       },
-      invalidatesTags: (_result, _error, { id }) => [{ type: 'Ingredient', id }],
+      invalidatesTags: (_result, _error, { id }) => [
+        { type: 'Ingredient', id },
+        { type: 'Ingredient', id: 'LIST' },
+        { type: 'Folder', id: 'LIST' },
+      ],
     }),
     adjustStock: builder.mutation<AdjustStockResponse, AdjustStockPayload>({
       query: ({ id, delta, purchasePrice }) => ({
@@ -294,7 +305,21 @@ export const inventoryApi = baseApi.injectEndpoints({
         url: `/ingredients/${id}`,
         method: 'DELETE',
       }),
-      invalidatesTags: ['Ingredient'],
+      invalidatesTags: ['Ingredient', { type: 'Folder', id: 'LIST' }],
+    }),
+    bulkSetFolder: builder.mutation<
+      { success: boolean; message: string; modified: number },
+      { ids: string[]; folderId: string | null }
+    >({
+      query: (body) => ({
+        url: '/ingredients/bulk/folder',
+        method: 'PATCH',
+        body,
+      }),
+      invalidatesTags: [
+        { type: 'Ingredient', id: 'LIST' },
+        { type: 'Folder', id: 'LIST' },
+      ],
     }),
     getUploadSignature: builder.query<UploadSignatureResponse, void>({
       query: () => '/ingredients/upload-signature',
@@ -309,5 +334,6 @@ export const {
   useUpdateIngredientMutation,
   useAdjustStockMutation,
   useDeleteIngredientMutation,
+  useBulkSetFolderMutation,
   useLazyGetUploadSignatureQuery,
 } = inventoryApi;

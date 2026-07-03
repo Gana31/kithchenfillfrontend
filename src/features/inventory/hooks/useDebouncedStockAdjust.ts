@@ -111,6 +111,9 @@ export function useDebouncedStockAdjust() {
 
         if (entry.pendingDelta !== 0) {
           scheduleFlush(id);
+        } else if (!entry.timer && !entry.savingTimer) {
+          // Fully settled — drop the entry so the map doesn't grow across a long session.
+          pendingRef.current.delete(id);
         }
       }
     },

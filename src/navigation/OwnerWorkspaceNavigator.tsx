@@ -10,6 +10,7 @@ import DashboardScreen from '../features/dashboard/DashboardScreen';
 import InventoryScreen from '../features/inventory/InventoryScreen';
 import RecipeBuilderScreen from '../features/recipes/RecipeBuilderScreen';
 import AddRecipeScreen from '../features/recipes/components/AddRecipeScreen';
+import FolderDetailScreen from '../features/inventory/FolderDetailScreen';
 import CounterScreen from '../features/sales/CounterScreen';
 import ProfileScreen from '../features/profile/ProfileScreen';
 import CustomAppHeader from './CustomAppHeader';
@@ -49,6 +50,7 @@ export default function OwnerWorkspaceNavigator() {
         <OwnerStack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
           <OwnerStack.Screen name="MainTabs" component={OwnerTabNavigator} />
           <OwnerStack.Screen name="AddRecipe" component={AddRecipeScreen} />
+          <OwnerStack.Screen name="FolderDetail" component={FolderDetailScreen} />
         </OwnerStack.Navigator>
       </View>
     </View>

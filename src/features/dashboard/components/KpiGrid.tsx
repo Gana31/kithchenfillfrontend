@@ -21,63 +21,82 @@ function KpiCard({
   sub?: string;
 }) {
   return (
-    <Card className="p-4 flex-1">
-      <Text className="text-[10px] text-muted dark:text-muted-dark font-bold tracking-normal">
-        {label}
-      </Text>
-      <Text className={`text-xl font-semibold mt-1 ${accent ?? 'text-text dark:text-text-dark'}`}>
-        {value}
-      </Text>
-      {sub ? (
-        <Text className="text-[10px] text-muted dark:text-muted-dark font-medium mt-1">{sub}</Text>
-      ) : null}
+    <Card className="p-4">
+      <View style={{ minHeight: 62 }}>
+        <Text
+          className="text-[10px] text-muted dark:text-muted-dark font-bold tracking-normal"
+          numberOfLines={1}
+        >
+          {label}
+        </Text>
+        <Text
+          className={`text-lg font-semibold mt-1 ${accent ?? 'text-text dark:text-text-dark'}`}
+          numberOfLines={1}
+        >
+          {value}
+        </Text>
+        {sub ? (
+          <Text
+            className="text-[10px] text-muted dark:text-muted-dark font-medium mt-1"
+            numberOfLines={1}
+          >
+            {sub}
+          </Text>
+        ) : null}
+      </View>
     </Card>
   );
 }
 
-export default function KpiGrid({ summary, isLoading }: KpiGridProps) {
-  if (isLoading || !summary) {
-    return (
-      <View className="flex-row flex-wrap" style={{ marginHorizontal: -6 }}>
-        {[1, 2, 3, 4].map((key) => (
-          <View key={key} style={{ width: '50%', paddingHorizontal: 6, paddingBottom: 12 }}>
-            <Card className="p-4 h-24 justify-center">
-              <Text className="text-xs text-muted dark:text-muted-dark">Loading...</Text>
-            </Card>
-          </View>
-        ))}
-      </View>
-    );
-  }
+const EMPTY_SUMMARY: DailySummary = {
+  date: '',
+  grossRevenue: 0,
+  netRevenue: 0,
+  makingCost: 0,
+  netProfit: 0,
+  marginPercent: 0,
+  orderCount: 0,
+  lowStockCount: 0,
+};
 
-  const kpiRowStyle = { flexDirection: 'row' as const, marginHorizontal: -6, paddingBottom: 12 };
-  const kpiCellStyle = { flex: 1, paddingHorizontal: 6 };
+// Explicit widths + margins (no flex `gap`) keep the 2x2 grid reliable on
+// native Android, where `gap` + `flex-1` can collapse rows and overlap cards.
+const ROW_STYLE = {
+  flexDirection: 'row' as const,
+  justifyContent: 'space-between' as const,
+};
+const CELL_STYLE = { width: '48%' as const };
+
+export default function KpiGrid({ summary }: KpiGridProps) {
+  // Always render the four cards; default to 0 so the layout never collapses on
+  // days with no data. Values update once real data loads.
+  const s = summary ?? EMPTY_SUMMARY;
 
   return (
     <View>
-      <View style={kpiRowStyle}>
-        <View style={kpiCellStyle}>
-          <KpiCard label="Gross sales" value={formatInr(summary.grossRevenue)} />
+      <View style={[ROW_STYLE, { marginBottom: 12 }]}>
+        <View style={CELL_STYLE}>
+          <KpiCard label="Gross sales" value={formatInr(s.grossRevenue)} />
         </View>
-        <View style={kpiCellStyle}>
-          <KpiCard label="Making cost" value={formatInr(summary.makingCost)} accent="text-red-500" />
+        <View style={CELL_STYLE}>
+          <KpiCard label="Making cost" value={formatInr(s.makingCost)} accent="text-red-500" />
         </View>
       </View>
-      <View className="flex-row" style={{ marginHorizontal: -6 }}>
-        <View style={kpiCellStyle}>
+      <View style={ROW_STYLE}>
+        <View style={CELL_STYLE}>
           <KpiCard
             label="Net profit"
-            value={formatInr(summary.netProfit)}
-            accent={summary.netProfit >= 0 ? 'text-emerald-500' : 'text-red-500'}
-            sub={`${summary.orderCount} orders`}
+            value={formatInr(s.netProfit)}
+            accent={s.netProfit >= 0 ? 'text-emerald-500' : 'text-red-500'}
+            sub={`${s.orderCount} orders`}
           />
         </View>
-        <View style={kpiCellStyle}>
+        <View style={CELL_STYLE}>
           <KpiCard
             label="Margin"
-            value={`${summary.marginPercent}%`}
+            value={`${s.marginPercent}%`}
             accent="text-primary"
-            sub={`${summary.lowStockCount} low stock`}
+            sub={`${s.lowStockCount} low stock`}
           />
         </View>
       </View>

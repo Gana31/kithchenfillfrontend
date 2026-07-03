@@ -2,7 +2,6 @@ import { useLayoutEffect } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors } from '../../../hooks/useThemeColors';
-import HeaderIconButton from '../../../components/HeaderIconButton';
 import { InventoryLayout } from '../inventoryUtils';
 
 interface UseInventoryHeaderOptions {
@@ -12,7 +11,6 @@ interface UseInventoryHeaderOptions {
   lowStockCount: number;
   lowFilterActive: boolean;
   onLayoutChange: (layout: InventoryLayout) => void;
-  onAddPress: () => void;
   onLowStockPress: () => void;
 }
 
@@ -57,7 +55,6 @@ export function useInventoryHeader({
   lowStockCount,
   lowFilterActive,
   onLayoutChange,
-  onAddPress,
   onLowStockPress,
 }: UseInventoryHeaderOptions) {
   const { primary, muted } = useThemeColors();
@@ -88,7 +85,6 @@ export function useInventoryHeader({
               </TouchableOpacity>
             </View>
           ) : null}
-          <HeaderIconButton icon="add" onPress={onAddPress} />
         </View>
       ),
     });
@@ -101,7 +97,6 @@ export function useInventoryHeader({
     lowStockCount,
     lowFilterActive,
     onLayoutChange,
-    onAddPress,
     onLowStockPress,
   ]);
 }

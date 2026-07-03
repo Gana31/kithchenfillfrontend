@@ -109,6 +109,8 @@ function RootApp() {
   }, [systemColorScheme, dispatch]);
 
   useEffect(() => {
+    // Not implemented in react-native-web — guard so the web build doesn't crash.
+    if (typeof Appearance.setColorScheme !== 'function') return;
     if (DEV_THEME_OVERRIDE) {
       Appearance.setColorScheme(DEV_THEME_OVERRIDE);
     } else if (themePreference === 'system') {

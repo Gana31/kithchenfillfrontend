@@ -1,13 +1,13 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
+  FlatList,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { TouchableOpacity as GestureTouchableOpacity } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -16,8 +16,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Input from '../../../components/Input';
 import Button from '../../../components/Button';
 import ScrollFormInput from '../../../components/ScrollFormInput';
-import ScreenContainer from '../../../components/ScreenContainer';
-import SpacedStack from '../../../components/SpacedStack';
 import { LoadingView } from '../../../components/AsyncStateViews';
 import { useGetIngredientsQuery, STOCK_SORT_FETCH_LIMIT } from '../../inventory/inventoryApi';
 import { useCreateRecipeMutation, useGetRecipesQuery, useUpdateRecipeMutation } from '../recipesApi';
@@ -37,7 +35,7 @@ import {
   getRecipeQtyUnitOptions,
   parseRecipeQtyWithUnit,
 } from '../../inventory/ingredientFormUtils';
-import { SCROLL_PRESS_DELAY_MS } from '../../../components/scrollUtils';
+import { SCROLL_LIST_PROPS, LIST_VIRTUALIZATION_PROPS } from '../../../components/scrollUtils';
 import { OwnerRootStackParamList } from '../../../navigation/ownerNavigation.types';
 import {
   RecipeLine,
@@ -215,6 +213,178 @@ export default function AddRecipeScreen() {
 
   const fieldStyle = [styles.field, { borderColor: border, backgroundColor: card, color: text }];
 
+  const renderLine = useCallback(
+    ({ item: row, index }: { item: RecipeLine; index: number }) => {
+      if (row.kind === 'stock') {
+        const selected = ingredients.find((ing) => ing._id === row.ingredientId);
+        const lineCost = row.ingredientId ? lineCostById.get(row.ingredientId) : undefined;
+
+        return (
+          <View style={[styles.lineCard, { borderColor: border, backgroundColor: card }]}>
+            <View style={styles.lineCardHeader}>
+              <Text style={[styles.lineCardTitle, { color: muted }]}>From stock · {index + 1}</Text>
+              <TouchableOpacity onPress={() => removeLine(row.id)} hitSlop={8}>
+                <Ionicons name="trash-outline" size={18} color="#ef4444" />
+              </TouchableOpacity>
+            </View>
+
+            <IngredientPicker
+              ingredients={ingredients}
+              selectedId={row.ingredientId}
+              onSelect={(id) => {
+                const ingredient = ingredients.find((item) => item._id === id);
+                updateLine(row.id, {
+                  ingredientId: id,
+                  qtyUnit: ingredient ? getDefaultRecipeQtyUnit(ingredient.unitRelation) : 'g',
+                });
+              }}
+              excludeIds={usedIngredientIds.filter((id) => id !== row.ingredientId)}
+            />
+
+            <View style={styles.qtySection}>
+              <View style={styles.qtyCostHeader}>
+                <Text style={[styles.fieldLabel, styles.headerLabel, { color: muted }]}>Quantity</Text>
+                <View style={styles.costInline}>
+                  <Text style={[styles.fieldLabel, styles.headerLabel, { color: muted }]}>Line cost</Text>
+                  <Text style={[styles.costValueInline, { color: primary }]}>
+                    {lineCost !== undefined ? formatInr(lineCost) : '—'}
+                  </Text>
+                </View>
+              </View>
+
+              <ScrollFormInput
+                value={row.netAmount}
+                onChangeText={(v) => updateLine(row.id, { netAmount: v })}
+                keyboardType="decimal-pad"
+                placeholder={
+                  row.qtyUnit === 'kg' ? '0.5' : row.qtyUnit === 'L' ? '1' : row.qtyUnit === 'pcs' ? '2' : '500'
+                }
+                placeholderTextColor={muted}
+                style={[fieldStyle, styles.qtyInputFull]}
+              />
+
+              {selected ? (
+                <InventoryQtyUnitToggle
+                  options={getRecipeQtyUnitOptions(selected.unitRelation)}
+                  value={row.qtyUnit}
+                  onChange={(unit) => updateLine(row.id, { qtyUnit: unit })}
+                  primary={primary}
+                  muted={muted}
+                  border={border}
+                  card={card}
+                />
+              ) : (
+                <View style={[styles.unitBadgeFull, { borderColor: `${primary}40`, backgroundColor: `${primary}12` }]}>
+                  <Text style={[styles.unitBadgeText, { color: primary }]}>—</Text>
+                </View>
+              )}
+            </View>
+          </View>
+        );
+      }
+
+      const customCost = parseDecimalInput(row.customAmount);
+      const customCostDisplay = customCost > 0 ? customCost : undefined;
+
+      return (
+        <View style={[styles.lineCard, { borderColor: border, backgroundColor: card }]}>
+          <View style={styles.lineCardHeader}>
+            <Text style={[styles.lineCardTitle, { color: muted }]}>Custom · recipe only · {index + 1}</Text>
+            <TouchableOpacity onPress={() => removeLine(row.id)} hitSlop={8}>
+              <Ionicons name="trash-outline" size={18} color="#ef4444" />
+            </TouchableOpacity>
+          </View>
+
+          <Text style={[styles.fieldLabel, { color: muted }]}>Name</Text>
+          <ScrollFormInput
+            value={row.customLabel}
+            onChangeText={(v) => updateLine(row.id, { customLabel: v })}
+            placeholder="Gas, paper, labour…"
+            placeholderTextColor={muted}
+            style={[fieldStyle, styles.fullField, { marginBottom: 12 }]}
+          />
+
+          <View style={styles.qtySection}>
+            <View style={styles.qtyCostHeader}>
+              <Text style={[styles.fieldLabel, styles.headerLabel, { color: muted }]}>Cost</Text>
+              <View style={styles.costInline}>
+                <Text style={[styles.fieldLabel, styles.headerLabel, { color: muted }]}>Line cost</Text>
+                <Text style={[styles.costValueInline, { color: primary }]}>
+                  {customCostDisplay !== undefined ? formatInr(customCostDisplay) : '—'}
+                </Text>
+              </View>
+            </View>
+
+            <ScrollFormInput
+              value={row.customAmount}
+              onChangeText={(v) => updateLine(row.id, { customAmount: v })}
+              keyboardType="decimal-pad"
+              placeholder="50.25"
+              placeholderTextColor={muted}
+              style={[fieldStyle, styles.qtyInputFull]}
+            />
+          </View>
+        </View>
+      );
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [ingredients, lineCostById, usedIngredientIds, border, card, muted, primary, text]
+  );
+
+  const listHeader = (
+    <View>
+      <Input
+        label="Recipe name"
+        value={name}
+        onChangeText={handleNameChange}
+        placeholder="1kg Chicken Biryani"
+      />
+      <Input
+        label="Extra waste %"
+        value={extraWastagePercent}
+        onChangeText={setExtraWastagePercent}
+        keyboardType="decimal-pad"
+        placeholder="5.5"
+      />
+      <Text className="text-sm font-semibold text-text dark:text-text-dark mt-2 mb-3">Ingredients</Text>
+    </View>
+  );
+
+  const listFooter = (
+    <View style={{ marginTop: 14 }}>
+      <View style={{ gap: 10, marginBottom: 16 }}>
+        <TouchableOpacity
+          onPress={() => setLines((rows) => [...rows, emptyStockLine()])}
+          activeOpacity={0.85}
+          style={[styles.addBtn, { borderColor: primary, backgroundColor: card }]}
+        >
+          <Ionicons name="leaf-outline" size={18} color={primary} />
+          <Text style={[styles.addBtnText, { color: primary }]}>Add from stock</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => setLines((rows) => [...rows, emptyCustomLine()])}
+          activeOpacity={0.85}
+          style={[styles.addBtn, { borderColor: primary, backgroundColor: card }]}
+        >
+          <Ionicons name="create-outline" size={18} color={primary} />
+          <Text style={[styles.addBtnText, { color: primary }]}>Add custom</Text>
+        </TouchableOpacity>
+      </View>
+
+      <RecipeCostSummary
+        preview={costPreview}
+        customCostLines={parsedCustomLines}
+        extraWastagePercent={parseDecimalInput(extraWastagePercent) || 0}
+      />
+
+      {formError ? <Text className="text-sm text-red-500 font-bold mb-3">{formError}</Text> : null}
+
+      <View style={{ paddingBottom: insets.bottom + 8 }}>
+        <Button label={isEditing ? 'Save changes' : 'Save recipe'} onPress={handleSubmit} loading={isSaving} />
+      </View>
+    </View>
+  );
+
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: background }}
@@ -235,210 +405,21 @@ export default function AddRecipeScreen() {
       {showFormLoading ? (
         <LoadingView message="Loading recipe…" />
       ) : (
-        <ScreenContainer
-          scrollable
-          gestureScroll
-          bottomInset={insets.bottom + 56}
-          contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 16 }}
-          scrollProps={{
-            keyboardShouldPersistTaps: 'handled',
-            nestedScrollEnabled: true,
+        <FlatList
+          data={lines}
+          keyExtractor={(row) => row.id}
+          renderItem={renderLine}
+          ListHeaderComponent={listHeader}
+          ListFooterComponent={listFooter}
+          contentContainerStyle={{
+            paddingHorizontal: 24,
+            paddingTop: 16,
+            paddingBottom: insets.bottom + 56,
+            gap: 14,
           }}
-        >
-          <Input
-            label="Recipe name"
-            value={name}
-            onChangeText={handleNameChange}
-            placeholder="1kg Chicken Biryani"
-          />
-
-          <Input
-            label="Extra waste %"
-            value={extraWastagePercent}
-            onChangeText={setExtraWastagePercent}
-            keyboardType="decimal-pad"
-            placeholder="5.5"
-          />
-
-          <Text className="text-sm font-semibold text-text dark:text-text-dark mt-2 mb-3">
-            Ingredients
-          </Text>
-
-          <SpacedStack gap={14}>
-          {lines.map((row, index) => {
-            if (row.kind === 'stock') {
-              const selected = ingredients.find((ing) => ing._id === row.ingredientId);
-              const lineCost = row.ingredientId ? lineCostById.get(row.ingredientId) : undefined;
-
-              return (
-                <View
-                  key={row.id}
-                  style={[styles.lineCard, { borderColor: border, backgroundColor: card }]}
-                >
-                  <View style={styles.lineCardHeader}>
-                    <Text style={[styles.lineCardTitle, { color: muted }]}>
-                      From stock · {index + 1}
-                    </Text>
-                    <TouchableOpacity onPress={() => removeLine(row.id)} hitSlop={8}>
-                      <Ionicons name="trash-outline" size={18} color="#ef4444" />
-                    </TouchableOpacity>
-                  </View>
-
-                  <IngredientPicker
-                    ingredients={ingredients}
-                    selectedId={row.ingredientId}
-                    onSelect={(id) => {
-                      const ingredient = ingredients.find((item) => item._id === id);
-                      updateLine(row.id, {
-                        ingredientId: id,
-                        qtyUnit: ingredient ? getDefaultRecipeQtyUnit(ingredient.unitRelation) : 'g',
-                      });
-                    }}
-                    excludeIds={usedIngredientIds.filter((id) => id !== row.ingredientId)}
-                  />
-
-                  <View style={styles.qtySection}>
-                    <View style={styles.qtyCostHeader}>
-                      <Text style={[styles.fieldLabel, styles.headerLabel, { color: muted }]}>
-                        Quantity
-                      </Text>
-                      <View style={styles.costInline}>
-                        <Text style={[styles.fieldLabel, styles.headerLabel, { color: muted }]}>
-                          Line cost
-                        </Text>
-                        <Text style={[styles.costValueInline, { color: primary }]}>
-                          {lineCost !== undefined ? formatInr(lineCost) : '—'}
-                        </Text>
-                      </View>
-                    </View>
-
-                    <ScrollFormInput
-                      value={row.netAmount}
-                      onChangeText={(v) => updateLine(row.id, { netAmount: v })}
-                      keyboardType="decimal-pad"
-                      placeholder={
-                        row.qtyUnit === 'kg' ? '0.5' : row.qtyUnit === 'L' ? '1' : row.qtyUnit === 'pcs' ? '2' : '500'
-                      }
-                      placeholderTextColor={muted}
-                      style={[fieldStyle, styles.qtyInputFull]}
-                    />
-
-                    {selected ? (
-                      <InventoryQtyUnitToggle
-                        options={getRecipeQtyUnitOptions(selected.unitRelation)}
-                        value={row.qtyUnit}
-                        onChange={(unit) => updateLine(row.id, { qtyUnit: unit })}
-                        primary={primary}
-                        muted={muted}
-                        border={border}
-                        card={card}
-                      />
-                    ) : (
-                      <View style={[styles.unitBadgeFull, { borderColor: `${primary}40`, backgroundColor: `${primary}12` }]}>
-                        <Text style={[styles.unitBadgeText, { color: primary }]}>—</Text>
-                      </View>
-                    )}
-                  </View>
-                </View>
-              );
-            }
-
-            const customCost = parseDecimalInput(row.customAmount);
-            const customCostDisplay = customCost > 0 ? customCost : undefined;
-
-            return (
-              <View
-                key={row.id}
-                style={[styles.lineCard, { borderColor: border, backgroundColor: card }]}
-              >
-                <View style={styles.lineCardHeader}>
-                  <Text style={[styles.lineCardTitle, { color: muted }]}>
-                    Custom · recipe only · {index + 1}
-                  </Text>
-                  <TouchableOpacity onPress={() => removeLine(row.id)} hitSlop={8}>
-                    <Ionicons name="trash-outline" size={18} color="#ef4444" />
-                  </TouchableOpacity>
-                </View>
-
-                <Text style={[styles.fieldLabel, { color: muted }]}>
-                  Name
-                </Text>
-                <ScrollFormInput
-                  value={row.customLabel}
-                  onChangeText={(v) => updateLine(row.id, { customLabel: v })}
-                  placeholder="Gas, paper, labour…"
-                  placeholderTextColor={muted}
-                  style={[fieldStyle, styles.fullField, { marginBottom: 12 }]}
-                />
-
-                <View style={styles.qtySection}>
-                  <View style={styles.qtyCostHeader}>
-                    <Text style={[styles.fieldLabel, styles.headerLabel, { color: muted }]}>
-                      Cost
-                    </Text>
-                    <View style={styles.costInline}>
-                      <Text style={[styles.fieldLabel, styles.headerLabel, { color: muted }]}>
-                        Line cost
-                      </Text>
-                      <Text style={[styles.costValueInline, { color: primary }]}>
-                        {customCostDisplay !== undefined ? formatInr(customCostDisplay) : '—'}
-                      </Text>
-                    </View>
-                  </View>
-
-                  <ScrollFormInput
-                    value={row.customAmount}
-                    onChangeText={(v) => updateLine(row.id, { customAmount: v })}
-                    keyboardType="decimal-pad"
-                    placeholder="50.25"
-                    placeholderTextColor={muted}
-                    style={[fieldStyle, styles.qtyInputFull]}
-                  />
-                </View>
-              </View>
-            );
-          })}
-          </SpacedStack>
-
-          <SpacedStack gap={10} style={{ marginTop: 14, marginBottom: 16 }}>
-            <GestureTouchableOpacity
-              onPress={() => setLines((rows) => [...rows, emptyStockLine()])}
-              activeOpacity={0.85}
-              style={[styles.addBtn, { borderColor: primary, backgroundColor: card }]}
-              delayPressIn={SCROLL_PRESS_DELAY_MS}
-            >
-              <Ionicons name="leaf-outline" size={18} color={primary} />
-              <Text style={[styles.addBtnText, { color: primary }]}>Add from stock</Text>
-            </GestureTouchableOpacity>
-            <GestureTouchableOpacity
-              onPress={() => setLines((rows) => [...rows, emptyCustomLine()])}
-              activeOpacity={0.85}
-              style={[styles.addBtn, { borderColor: primary, backgroundColor: card }]}
-              delayPressIn={SCROLL_PRESS_DELAY_MS}
-            >
-              <Ionicons name="create-outline" size={18} color={primary} />
-              <Text style={[styles.addBtnText, { color: primary }]}>Add custom</Text>
-            </GestureTouchableOpacity>
-          </SpacedStack>
-
-          <RecipeCostSummary
-            preview={costPreview}
-            customCostLines={parsedCustomLines}
-            extraWastagePercent={parseDecimalInput(extraWastagePercent) || 0}
-          />
-
-          {formError ? (
-            <Text className="text-sm text-red-500 font-bold mb-3">{formError}</Text>
-          ) : null}
-
-          <View style={{ paddingBottom: insets.bottom + 8 }}>
-            <Button
-              label={isEditing ? 'Save changes' : 'Save recipe'}
-              onPress={handleSubmit}
-              loading={isSaving}
-            />
-          </View>
-        </ScreenContainer>
+          {...SCROLL_LIST_PROPS}
+          {...LIST_VIRTUALIZATION_PROPS}
+        />
       )}
     </KeyboardAvoidingView>
   );

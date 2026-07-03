@@ -16,6 +16,8 @@ export const INVENTORY_PREFS_KEY = 'inventory-view-preferences';
 
 export interface InventoryPreferences {
   layout: InventoryLayout;
+  /** false = show all ingredients, true = group into folders. */
+  grouped: boolean;
   sortBy: SortOption;
 }
 
@@ -28,11 +30,15 @@ export async function loadInventoryPreferences(): Promise<InventoryPreferences |
     if (!raw) return null;
 
     const parsed = JSON.parse(raw);
-    if (
-      VALID_LAYOUTS.includes(parsed.layout) &&
-      VALID_SORTS.includes(parsed.sortBy)
-    ) {
-      return parsed as InventoryPreferences;
+    // Migrate legacy layout 'folders' -> { layout: 'grid', grouped: true }.
+    const legacyGrouped = parsed.layout === 'folders';
+    const layout: InventoryLayout = VALID_LAYOUTS.includes(parsed.layout) ? parsed.layout : 'list';
+    if (VALID_SORTS.includes(parsed.sortBy)) {
+      return {
+        layout,
+        grouped: typeof parsed.grouped === 'boolean' ? parsed.grouped : legacyGrouped,
+        sortBy: parsed.sortBy,
+      };
     }
   } catch (error) {
     console.error('Failed to load inventory preferences:', error);

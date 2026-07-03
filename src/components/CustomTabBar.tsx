@@ -181,6 +181,11 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
                     type: 'inventoryTabRepress',
                     target: route.key,
                   });
+                } else if (route.name === 'Recipes') {
+                  (navigation as { emit: (event: { type: string; target: string }) => void }).emit({
+                    type: 'recipesTabRepress',
+                    target: route.key,
+                  });
                 }
                 return;
               }

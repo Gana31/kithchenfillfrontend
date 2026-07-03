@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useAppDispatch, useAppSelector } from '../../store/store';
@@ -12,8 +12,8 @@ import Input from '../../components/Input';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors } from '../../hooks/useThemeColors';
 import ConfirmModal from '../../components/ConfirmModal';
-import ScreenContainer from '../../components/ScreenContainer';
-import SpacedStack, { SectionHeading } from '../../components/SpacedStack';
+import { SectionHeading } from '../../components/SpacedStack';
+import { SCROLL_LIST_PROPS, SCROLL_GAP_TOUCH } from '../../components/scrollUtils';
 import * as Updates from 'expo-updates';
 import { checkForOtaUpdate, downloadAndApplyOtaUpdate } from '../../utils/otaUpdates';
 import ChangePasswordCard from './ChangePasswordCard';
@@ -202,11 +202,10 @@ export default function ProfileScreen({ navigation }: any) {
     setIsLogoutModalVisible(true);
   };
 
-  return (
-    <>
-      <StatusBar style={isDark ? 'light' : 'dark'} />
-      <ScreenContainer scrollable contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 16 }}>
-        <SpacedStack gap={16}>
+  const sections: { key: string; content: React.ReactNode }[] = [
+    {
+      key: 'profile',
+      content: (
         <Card className="items-center py-6">
           <View className="w-20 h-20 rounded-full bg-primary/10 border border-primary/20 items-center justify-center mb-3">
             <Ionicons name="person" size={40} color={primary} />
@@ -223,7 +222,11 @@ export default function ProfileScreen({ navigation }: any) {
             </Text>
           </View>
         </Card>
-
+      ),
+    },
+    {
+      key: 'account',
+      content: (
         <View>
         <SectionHeading title="Account Settings" />
 
@@ -249,7 +252,11 @@ export default function ProfileScreen({ navigation }: any) {
           />
         </Card>
         </View>
-
+      ),
+    },
+    {
+      key: 'security',
+      content: (
         <View>
         <SectionHeading title="Security" />
 
@@ -270,7 +277,11 @@ export default function ProfileScreen({ navigation }: any) {
           }
         />
         </View>
-
+      ),
+    },
+    {
+      key: 'appearance',
+      content: (
         <View>
         <SectionHeading title="Appearance" />
 
@@ -312,7 +323,11 @@ export default function ProfileScreen({ navigation }: any) {
           </Text>
         </Card>
         </View>
-
+      ),
+    },
+    {
+      key: 'update',
+      content: (
         <View>
         <SectionHeading title="App Update" />
         <Card className="p-5">
@@ -374,7 +389,11 @@ export default function ProfileScreen({ navigation }: any) {
           />
         </Card>
         </View>
-
+      ),
+    },
+    {
+      key: 'session',
+      content: (
         <View>
         <SectionHeading title="Session" />
 
@@ -399,8 +418,29 @@ export default function ProfileScreen({ navigation }: any) {
           </TouchableOpacity>
         </Card>
         </View>
-        </SpacedStack>
-      </ScreenContainer>
+      ),
+    },
+  ];
+
+  return (
+    <>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
+      <View style={{ flex: 1, backgroundColor: 'transparent' }}>
+        <ScrollView
+          style={[{ flex: 1 }, SCROLL_GAP_TOUCH]}
+          contentContainerStyle={[
+            { paddingHorizontal: 24, paddingTop: 16, paddingBottom: insets.bottom + 110 },
+            SCROLL_GAP_TOUCH,
+          ]}
+          {...SCROLL_LIST_PROPS}
+        >
+          {sections.map((section) => (
+            <View key={section.key} style={{ marginBottom: 16 }}>
+              {section.content}
+            </View>
+          ))}
+        </ScrollView>
+      </View>
 
       <ConfirmModal
         visible={isLogoutModalVisible}
