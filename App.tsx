@@ -13,7 +13,7 @@ import OnboardingScreen from './src/features/auth/OnboardingScreen';
 import LoginScreen from './src/features/auth/LoginScreen';
 import RegisterScreen from './src/features/auth/RegisterScreen';
 import ForgotPasswordScreen from './src/features/auth/ForgotPasswordScreen';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { loadTheme, setSystemIsDark, selectIsDark } from './src/store/themeSlice';
 import {
   selectIsAuthenticated,
@@ -37,13 +37,15 @@ import AppErrorBoundary from './src/components/AppErrorBoundary';
 import BlobBackground from './src/components/BlobBackground';
 import './global.css';
 
-enableFreeze(true);
 
 const Stack = createNativeStackNavigator();
 const SuperadminStack = createNativeStackNavigator<SuperadminRootStackParamList>();
 const Tab = createBottomTabNavigator();
 
 function SuperadminTabNavigator() {
+  const insets = useSafeAreaInsets();
+  const tabBarHeight = 64 + insets.bottom;
+
   return (
     <Tab.Navigator
       tabBar={(props) => <CustomTabBar {...props} />}
@@ -52,6 +54,16 @@ function SuperadminTabNavigator() {
         header: (props) => <CustomAppHeader {...props} />,
         animation: 'shift',
         sceneStyle: { flex: 1, backgroundColor: 'transparent' },
+        tabBarStyle: {
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: tabBarHeight,
+          backgroundColor: 'transparent',
+          borderTopWidth: 0,
+          elevation: 0,
+        },
       }}
     >
       <Tab.Screen name="Dashboard" component={SuperadminDashboardScreen} />
@@ -77,15 +89,7 @@ function SuperadminNavigator() {
 }
 
 function OwnerNavigator() {
-  const isDark = useAppSelector(selectIsDark);
-  return (
-    <View style={{ flex: 1, backgroundColor: isDark ? '#09090A' : '#FFFFFF' }}>
-      <BlobBackground />
-      <View style={{ flex: 1, zIndex: 1, elevation: 1 }}>
-        <OwnerWorkspaceNavigator />
-      </View>
-    </View>
-  );
+  return <OwnerWorkspaceNavigator />;
 }
 
 function RootApp() {
@@ -135,7 +139,7 @@ function RootApp() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <View className={isDark ? 'dark flex-1' : 'flex-1'}>
+        <View style={{ flex: 1 }} className={isDark ? 'dark' : ''}>
           <NavigationContainer theme={navTheme}>
             <Stack.Navigator
               screenOptions={{

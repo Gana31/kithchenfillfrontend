@@ -49,6 +49,10 @@ export default function AddRecipeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<OwnerRootStackParamList, 'AddRecipe'>>();
   const route = useRoute<RouteProp<OwnerRootStackParamList, 'AddRecipe'>>();
   const recipeId = route.params?.recipeId;
+  const prefillName = route.params?.prefillName;
+  const prefillYieldAmount = route.params?.prefillYieldAmount;
+  const prefillYieldUnit = route.params?.prefillYieldUnit;
+  const prefillPlateId = route.params?.prefillPlateId;
   const isEditing = Boolean(recipeId);
   const insets = useSafeAreaInsets();
   const { primary, muted, text, card, border, background, isDark } = useThemeColors();
@@ -72,6 +76,8 @@ export default function AddRecipeScreen() {
   const ingredients = ingredientsData?.ingredients ?? [];
 
   const [name, setName] = useState('');
+  const [yieldAmount, setYieldAmount] = useState('1');
+  const [yieldUnit, setYieldUnit] = useState<'kg' | 'g' | 'L' | 'ml' | 'pcs'>('kg');
   const [extraWastagePercent, setExtraWastagePercent] = useState('5');
   const [lines, setLines] = useState<RecipeLine[]>([emptyStockLine()]);
   const [formError, setFormError] = useState('');
@@ -84,7 +90,16 @@ export default function AddRecipeScreen() {
   useEffect(() => {
     if (!recipeId) {
       const fresh = createEmptyFormState();
-      setName(fresh.name);
+      let initialName = fresh.name;
+      if (prefillName && prefillYieldAmount && prefillYieldUnit) {
+        initialName = prefillName;
+        setYieldAmount(String(prefillYieldAmount));
+        setYieldUnit(prefillYieldUnit as any);
+      } else {
+        setYieldAmount('1');
+        setYieldUnit('kg');
+      }
+      setName(initialName);
       setExtraWastagePercent(fresh.extraWastagePercent);
       setLines(fresh.lines);
       setFormError('');
@@ -98,9 +113,26 @@ export default function AddRecipeScreen() {
     setName(form.name);
     setExtraWastagePercent(form.extraWastagePercent);
     setLines(form.lines);
+
+    let displayAmt = editingRecipe.batchYieldAmount;
+    let displayUnit: 'kg' | 'g' | 'L' | 'ml' | 'pcs' = editingRecipe.batchYieldUnit as any;
+    if (editingRecipe.batchYieldUnit === 'g') {
+      if (displayAmt >= 1000 && displayAmt % 1000 === 0) {
+        displayAmt = displayAmt / 1000;
+        displayUnit = 'kg';
+      }
+    } else if (editingRecipe.batchYieldUnit === 'ml') {
+      if (displayAmt >= 1000 && displayAmt % 1000 === 0) {
+        displayAmt = displayAmt / 1000;
+        displayUnit = 'L';
+      }
+    }
+    setYieldAmount(String(displayAmt));
+    setYieldUnit(displayUnit);
+
     setFormError('');
     setFormHydrated(true);
-  }, [recipeId, editingRecipe, ingredients, ingredientsLoading]);
+  }, [recipeId, editingRecipe, ingredients, ingredientsLoading, prefillName, prefillYieldAmount, prefillYieldUnit]);
 
   const showFormLoading = isEditing && (!editingRecipe || ingredientsLoading || !formHydrated);
 
@@ -178,17 +210,48 @@ export default function AddRecipeScreen() {
       return;
     }
 
-    const { batchYieldAmount, batchYieldUnit, costingMode } = resolveBatchYieldFromName(name.trim());
+    const rawAmount = parseDecimalInput(yieldAmount);
+    if (!rawAmount || rawAmount <= 0) {
+      setFormError('Batch yield amount must be greater than 0.');
+      return;
+    }
+
+    let resolvedYieldAmount = rawAmount;
+    let resolvedYieldUnit: 'g' | 'ml' | 'pcs' = 'g';
+    let costingMode: 'weight' | 'piece' = 'weight';
+
+    if (yieldUnit === 'kg') {
+      resolvedYieldAmount = rawAmount * 1000;
+      resolvedYieldUnit = 'g';
+      costingMode = 'weight';
+    } else if (yieldUnit === 'L') {
+      resolvedYieldAmount = rawAmount * 1000;
+      resolvedYieldUnit = 'ml';
+      costingMode = 'weight';
+    } else if (yieldUnit === 'g') {
+      resolvedYieldAmount = rawAmount;
+      resolvedYieldUnit = 'g';
+      costingMode = 'weight';
+    } else if (yieldUnit === 'ml') {
+      resolvedYieldAmount = rawAmount;
+      resolvedYieldUnit = 'ml';
+      costingMode = 'weight';
+    } else if (yieldUnit === 'pcs') {
+      resolvedYieldAmount = rawAmount;
+      resolvedYieldUnit = 'pcs';
+      costingMode = 'piece';
+    }
 
     const payload = {
       name: name.trim(),
       costingMode,
-      batchYieldAmount,
-      batchYieldUnit,
+      batchYieldAmount: resolvedYieldAmount,
+      batchYieldUnit: resolvedYieldUnit,
       ingredientsUsed: parsedIngredients,
       makingCharges: { fixedAmount: 0, percentOfIngredients: 0 },
       customCostLines: parsedCustomLines,
       extraWastagePercent: parseDecimalInput(extraWastagePercent) || 0,
+      linkPlateId: prefillPlateId,
     };
 
     try {
@@ -332,13 +395,42 @@ export default function AddRecipeScreen() {
   );
 
   const listHeader = (
-    <View>
+    <View style={{ gap: 12 }}>
       <Input
         label="Recipe name"
         value={name}
         onChangeText={handleNameChange}
-        placeholder="1kg Chicken Biryani"
+        placeholder="e.g. Chicken Biryani"
       />
+
+      <View className="flex-row" style={{ gap: 12, marginBottom: 4 }}>
+        <View className="flex-1">
+          <Input
+            label="Batch Yield"
+            value={yieldAmount}
+            onChangeText={setYieldAmount}
+            keyboardType="decimal-pad"
+            placeholder="1"
+          />
+        </View>
+        <View style={{ width: 160 }}>
+          <Text style={[styles.fieldLabel, { color: muted }]}>Yield Unit</Text>
+          <View className="flex-row bg-card dark:bg-card-dark border border-border dark:border-border-dark rounded-xl p-1 h-[48px]" style={{ gap: 4 }}>
+            {(['kg', 'g', 'L', 'ml', 'pcs'] as const).map((u) => (
+              <TouchableOpacity
+                key={u}
+                onPress={() => setYieldUnit(u)}
+                className={`flex-1 justify-center items-center rounded-lg ${yieldUnit === u ? 'bg-primary' : ''}`}
+              >
+                <Text style={{ fontSize: 10, fontWeight: '800', color: yieldUnit === u ? '#fff' : muted }}>
+                  {u}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      </View>
+
       <Input
         label="Extra waste %"
         value={extraWastagePercent}
@@ -346,7 +438,7 @@ export default function AddRecipeScreen() {
         keyboardType="decimal-pad"
         placeholder="5.5"
       />
-      <Text className="text-sm font-semibold text-text dark:text-text-dark mt-2 mb-3">Ingredients</Text>
+      <Text className="text-sm font-semibold text-text dark:text-text-dark mt-2 mb-1">Ingredients</Text>
     </View>
   );
 
@@ -375,6 +467,8 @@ export default function AddRecipeScreen() {
         preview={costPreview}
         customCostLines={parsedCustomLines}
         extraWastagePercent={parseDecimalInput(extraWastagePercent) || 0}
+        yieldAmount={parseDecimalInput(yieldAmount)}
+        yieldUnit={yieldUnit}
       />
 
       {formError ? <Text className="text-sm text-red-500 font-bold mb-3">{formError}</Text> : null}

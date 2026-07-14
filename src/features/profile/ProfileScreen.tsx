@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useAppDispatch, useAppSelector } from '../../store/store';
@@ -13,7 +13,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors } from '../../hooks/useThemeColors';
 import ConfirmModal from '../../components/ConfirmModal';
 import { SectionHeading } from '../../components/SpacedStack';
-import { SCROLL_LIST_PROPS, SCROLL_GAP_TOUCH } from '../../components/scrollUtils';
+import PageScrollView from '../../components/PageScrollView';
+import SpacedStack from '../../components/SpacedStack';
 import * as Updates from 'expo-updates';
 import { checkForOtaUpdate, downloadAndApplyOtaUpdate } from '../../utils/otaUpdates';
 import ChangePasswordCard from './ChangePasswordCard';
@@ -23,7 +24,7 @@ export default function ProfileScreen({ navigation }: any) {
   const dispatch = useAppDispatch();
   const user = useAppSelector(selectCurrentUser);
   const themePreference = useAppSelector(selectThemePreference);
-  const { primary, danger, muted, isDark } = useThemeColors();
+  const { primary, danger, muted, isDark, background } = useThemeColors();
   const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
 
   // OTA Updates State
@@ -426,20 +427,20 @@ export default function ProfileScreen({ navigation }: any) {
     <>
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <View style={{ flex: 1, backgroundColor: 'transparent' }}>
-        <ScrollView
-          style={[{ flex: 1 }, SCROLL_GAP_TOUCH]}
-          contentContainerStyle={[
-            { paddingHorizontal: 24, paddingTop: 16, paddingBottom: insets.bottom + 110 },
-            SCROLL_GAP_TOUCH,
-          ]}
-          {...SCROLL_LIST_PROPS}
+        <PageScrollView
+          transparent
+          contentContainerStyle={{
+            paddingHorizontal: 24,
+            paddingTop: 16,
+            paddingBottom: insets.bottom + 110,
+          }}
         >
-          {sections.map((section) => (
-            <View key={section.key} style={{ marginBottom: 16 }}>
-              {section.content}
-            </View>
-          ))}
-        </ScrollView>
+          <SpacedStack gap={16}>
+            {sections.map((section) => (
+              <View key={section.key}>{section.content}</View>
+            ))}
+          </SpacedStack>
+        </PageScrollView>
       </View>
 
       <ConfirmModal

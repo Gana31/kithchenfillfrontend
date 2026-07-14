@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -31,7 +32,6 @@ import ConfirmModal from '../../components/ConfirmModal';
 import ScreenContainer from '../../components/ScreenContainer';
 import {
   SCROLL_LIST_PROPS,
-  SCROLL_GAP_TOUCH,
   LIST_VIRTUALIZATION_PROPS,
   GRID_VIRTUALIZATION_PROPS,
 } from '../../components/scrollUtils';
@@ -57,7 +57,7 @@ export default function InventoryScreen({ navigation }: any) {
   const isFocused = useIsFocused();
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
-  const { isDark, primary, muted } = useThemeColors();
+  const { isDark, primary, muted, background } = useThemeColors();
   const cardWidth = getGridCardWidth(screenWidth);
 
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -368,13 +368,27 @@ export default function InventoryScreen({ navigation }: any) {
   );
 
   // Horizontal inset lives on the rows (below), so the scroll surface itself spans edge to edge.
+  // Invisible low-alpha background makes every pixel touchable on Android (no dead transparent gaps) without blocking the gradient background.
   const sharedContentContainerStyle = useMemo((): ViewStyle => ({
     width: '100%',
     flexGrow: 1,
     paddingTop: 8,
     paddingBottom: insets.bottom + 120,
-    ...SCROLL_GAP_TOUCH,
-  }), [insets.bottom]);
+    backgroundColor: Platform.OS === 'android'
+      ? (isDark ? 'rgba(9, 9, 10, 0.015)' : 'rgba(255, 255, 255, 0.015)')
+      : 'transparent',
+  }), [insets.bottom, isDark]);
+
+  const listSurfaceStyle = useMemo(
+    (): ViewStyle => ({
+      flex: 1,
+      width: '100%',
+      backgroundColor: Platform.OS === 'android'
+        ? (isDark ? 'rgba(9, 9, 10, 0.015)' : 'rgba(255, 255, 255, 0.015)')
+        : 'transparent',
+    }),
+    [isDark]
+  );
 
   const renderListItem: ListRenderItem<IngredientData> = useCallback(
     ({ item }) => (
@@ -559,7 +573,7 @@ export default function InventoryScreen({ navigation }: any) {
             <FlatList
               ref={gridRef}
               key={`inventory-grid-${gridCardHeight}`}
-              style={{ flex: 1, width: '100%', backgroundColor: 'transparent' }}
+              style={listSurfaceStyle}
               data={gridData}
               extraData={gridExtraData}
               keyExtractor={(item) => item.id}
@@ -584,7 +598,7 @@ export default function InventoryScreen({ navigation }: any) {
             <FlatList
               ref={listRef}
               key="inventory-list"
-              style={{ flex: 1, width: '100%', backgroundColor: 'transparent' }}
+              style={listSurfaceStyle}
               data={listData}
               extraData={listExtraData}
               keyExtractor={(item) => item._id}

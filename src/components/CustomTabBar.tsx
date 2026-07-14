@@ -1,5 +1,12 @@
 import React, { useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform, Animated } from 'react-native';
+import {
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+  Platform,
+  Animated,
+} from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -64,12 +71,10 @@ function AnimatedTabItem({
     iconName = isFocused ? 'cube' : 'cube-outline';
   } else if (routeName.toLowerCase().includes('recipe')) {
     iconName = isFocused ? 'restaurant' : 'restaurant-outline';
-  } else if (
-    routeName.toLowerCase().includes('sales') ||
-    routeName.toLowerCase().includes('log') ||
-    routeName.toLowerCase().includes('counter')
-  ) {
-    iconName = isFocused ? 'receipt' : 'receipt-outline';
+  } else if (routeName.toLowerCase().includes('plate')) {
+    iconName = isFocused ? 'fast-food' : 'fast-food-outline';
+  } else if (routeName.toLowerCase().includes('udhaar')) {
+    iconName = isFocused ? 'cash' : 'cash-outline';
   } else if (routeName.toLowerCase().includes('profile')) {
     iconName = isFocused ? 'person' : 'person-outline';
   }
@@ -78,13 +83,13 @@ function AnimatedTabItem({
   const inactiveColor = isDark ? 'rgba(255, 255, 255, 0.55)' : 'rgba(24, 24, 27, 0.6)';
 
   return (
-    <TouchableOpacity
+    <Pressable
       accessibilityRole="button"
       accessibilityState={isFocused ? { selected: true } : {}}
       onPress={onPress}
       onLongPress={onLongPress}
-      className="items-center justify-center flex-1"
-      activeOpacity={0.75}
+      style={styles.tabItem}
+      android_ripple={null}
     >
       <Animated.View
         style={{
@@ -95,13 +100,13 @@ function AnimatedTabItem({
           minWidth: 50,
         }}
       >
-        <Ionicons name={iconName} size={21} color={isFocused ? activeColor : inactiveColor} />
+        <Ionicons name={iconName} size={20} color={isFocused ? activeColor : inactiveColor} />
         <Text
           style={{
             color: isFocused ? activeColor : inactiveColor,
             fontSize: 9,
             fontWeight: '600',
-            marginTop: 3,
+            marginTop: 2,
             textTransform: 'capitalize',
             letterSpacing: 0.3,
           }}
@@ -111,14 +116,14 @@ function AnimatedTabItem({
         <Animated.View
           style={{
             width: activeBarWidth,
-            height: 2.5,
-            borderRadius: 1.25,
+            height: 2,
+            borderRadius: 1,
             backgroundColor: isFocused ? activeColor : 'transparent',
-            marginTop: 4,
+            marginTop: 3,
           }}
         />
       </Animated.View>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 
@@ -126,37 +131,31 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
   const insets = useSafeAreaInsets();
   const isDark = useAppSelector(selectIsDark);
   const systemNavColor = isDark ? COLORS.dark.background : COLORS.light.background;
-  const bottomMargin = insets.bottom + (Platform.OS === 'ios' ? 12 : 16);
+  const tabBarHeight = 64 + insets.bottom;
 
   return (
-    <>
-      {insets.bottom > 0 ? (
-        <View
-          pointerEvents="none"
-          style={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: insets.bottom,
-            backgroundColor: systemNavColor,
-            zIndex: 1,
-          }}
-        />
-      ) : null}
-
+    <View
+      pointerEvents="box-none"
+      style={{
+        height: tabBarHeight,
+        width: '100%',
+        backgroundColor: 'transparent',
+        justifyContent: 'flex-end',
+      }}
+    >
+      {/* Floating Pill Container (Fully within bounds of the tab bar) */}
       <View
         style={[
           styles.container,
           {
-            bottom: bottomMargin,
-            backgroundColor: isDark ? 'rgba(10, 10, 12, 0.85)' : 'rgba(255, 255, 255, 0.85)',
+            backgroundColor: isDark ? 'rgba(10, 10, 12, 0.92)' : 'rgba(255, 255, 255, 0.92)',
             borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(24, 24, 27, 0.08)',
-            zIndex: 2,
+            marginTop: 4,
+            marginBottom: insets.bottom > 0 ? 4 : 10,
           },
         ]}
       >
-        <View className="flex-row justify-around items-center w-full px-2 py-3">
+        <View style={styles.tabRow}>
           {state.routes.map((route, index) => {
             const { options } = descriptors[route.key];
             const label =
@@ -217,21 +216,45 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
           })}
         </View>
       </View>
-    </>
+
+      {/* System Nav Area Fill */}
+      {insets.bottom > 0 ? (
+        <View
+          pointerEvents="none"
+          style={{
+            height: insets.bottom,
+            width: '100%',
+            backgroundColor: systemNavColor,
+          }}
+        />
+      ) : null}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    position: 'absolute',
-    left: 20,
-    right: 20,
+    height: 50,
+    marginHorizontal: 20,
     borderRadius: 24,
     overflow: 'hidden',
     borderWidth: 1.5,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.15,
     shadowRadius: 12,
-    elevation: 8,
+    elevation: Platform.OS === 'android' ? 0 : 8,
+    justifyContent: 'center',
+  },
+  tabRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    width: '100%',
+    paddingHorizontal: 8,
+  },
+  tabItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

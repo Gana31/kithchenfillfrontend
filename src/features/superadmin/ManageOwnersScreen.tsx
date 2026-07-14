@@ -1,11 +1,9 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { 
   View, 
   Text, 
   TouchableOpacity, 
   ActivityIndicator,
-  LayoutChangeEvent,
-  ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -20,7 +18,7 @@ import SearchBar from '../../components/SearchBar';
 import OwnerCard from './components/OwnerCard';
 import AddOwnerModal from './components/AddOwnerModal';
 import SpacedStack from '../../components/SpacedStack';
-import { SCROLL_LIST_PROPS } from '../../components/scrollUtils';
+import PageScrollView from '../../components/PageScrollView';
 import { openOwnerWorkspace } from './superadminNavigation';
 import { TenantData } from './superadminApi';
 import { useAppDispatch } from '../../store/store';
@@ -37,19 +35,6 @@ export default function ManageOwnersScreen({ navigation }: any) {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [scrollAreaHeight, setScrollAreaHeight] = useState(0);
-
-  const onScrollAreaLayout = useCallback((event: LayoutChangeEvent) => {
-    setScrollAreaHeight(event.nativeEvent.layout.height);
-  }, []);
-
-  const scrollContentStyle = useMemo(
-    () => ({
-      paddingBottom: insets.bottom + 120,
-      ...(scrollAreaHeight > 0 ? { minHeight: scrollAreaHeight } : null),
-    }),
-    [insets.bottom, scrollAreaHeight]
-  );
 
   React.useLayoutEffect(() => {
     navigation.setOptions({
@@ -130,13 +115,12 @@ export default function ManageOwnersScreen({ navigation }: any) {
             </TouchableOpacity>
           </View>
         ) : (
-          <View className="flex-1" onLayout={onScrollAreaLayout} collapsable={false}>
-            <ScrollView
+          <View className="flex-1" collapsable={false}>
+            <PageScrollView
+              fillHeight
               style={{ flex: 1, backgroundColor: 'transparent' }}
-              contentContainerStyle={[scrollContentStyle, { flexGrow: 1 }]}
-              {...SCROLL_LIST_PROPS}
+              contentContainerStyle={{ paddingBottom: insets.bottom + 120, flexGrow: 1 }}
             >
-              <View style={{ width: '100%' }} collapsable={false} pointerEvents="box-none">
             {filteredTenants.length === 0 ? (
               <Card className="p-8 items-center justify-center">
                 <Text className="text-muted dark:text-muted-dark text-xs font-bold text-center">
@@ -156,8 +140,7 @@ export default function ManageOwnersScreen({ navigation }: any) {
                 ))}
               </SpacedStack>
             )}
-              </View>
-            </ScrollView>
+            </PageScrollView>
           </View>
         )}
       </View>

@@ -1,13 +1,21 @@
-import { Platform, ViewStyle } from 'react-native';
+import { Platform, ViewStyle, Appearance } from 'react-native';
 
 /**
- * Nearly invisible fill — Android ignores fully transparent views for touch,
- * which makes scroll gaps feel dead until you swipe many times. Kept at ~2% so
- * it's imperceptible over the app background but reliably hit-tested on Android.
- * Only applied on Android; web and iOS scroll transparent areas fine.
+ * Opaque fill for gap/separator Views on Android.
+ *
+ * Android requires a View to have at least some opaque pixels to register as
+ * a valid touch target. rgba(0,0,0,0.02) (the old value) is below the
+ * hit-test threshold on most Android devices, making the gaps between cards
+ * in a ScrollView feel like dead zones where scrolling never starts.
+ *
+ * We use the actual app background colour so the spacer is visually invisible
+ * while still being fully opaque and hit-testable by Android's native layer.
  */
+const _isDark = Appearance.getColorScheme() === 'dark';
 export const SCROLL_GAP_TOUCH: ViewStyle =
-  Platform.OS === 'android' ? { backgroundColor: 'rgba(0,0,0,0.02)' } : {};
+  Platform.OS === 'android'
+    ? { backgroundColor: _isDark ? '#09090A' : '#FFFFFF' }
+    : {};
 
 /** Shared props for vertical scroll lists. */
 export const SCROLL_LIST_PROPS = {
@@ -17,6 +25,7 @@ export const SCROLL_LIST_PROPS = {
   overScrollMode: 'always' as const,
   removeClippedSubviews: false,
   decelerationRate: 'normal' as const,
+  nestedScrollEnabled: Platform.OS === 'android',
 };
 
 /**

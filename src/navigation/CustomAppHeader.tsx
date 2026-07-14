@@ -50,11 +50,17 @@ export default function CustomAppHeader({ options, route, navigation }: BottomTa
           titleHighlight: 'Recipes',
           subtitle: isImpersonating ? `${impersonatedBusinessName} · Recipes` : 'Manage Batches',
         };
-      case 'Counter':
+      case 'Plates':
         return {
-          title: 'Order',
-          titleHighlight: 'Counter',
-          subtitle: isImpersonating ? `${impersonatedBusinessName} · Sales` : 'Log Local Sales',
+          title: 'Portion',
+          titleHighlight: 'Plates',
+          subtitle: isImpersonating ? `${impersonatedBusinessName} · Plates` : 'Recipe Portions & Costs',
+        };
+      case 'Udhaar':
+        return {
+          title: 'Udhaar',
+          titleHighlight: 'Credits',
+          subtitle: isImpersonating ? `${impersonatedBusinessName} · Credits` : 'Track Dues & Payments',
         };
       case 'Profile':
         return {

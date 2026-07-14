@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 import Card from '../../../components/Card';
+import { SCROLL_GAP_TOUCH } from '../../../components/scrollUtils';
+import { ScrollGap } from '../../../components/SpacedStack';
 import { formatInr } from '../dashboardUtils';
 import { DailySummary } from '../analyticsApi';
 
@@ -59,31 +61,33 @@ const EMPTY_SUMMARY: DailySummary = {
   lowStockCount: 0,
 };
 
-// Explicit widths + margins (no flex `gap`) keep the 2x2 grid reliable on
-// native Android, where `gap` + `flex-1` can collapse rows and overlap cards.
 const ROW_STYLE = {
   flexDirection: 'row' as const,
-  justifyContent: 'space-between' as const,
+  alignItems: 'stretch' as const,
 };
-const CELL_STYLE = { width: '48%' as const };
+
+/** Touch-safe horizontal gap — Android ignores transparent space-between gutters. */
+function RowGap() {
+  return <View style={[{ width: 12 }, SCROLL_GAP_TOUCH]} collapsable={false} />;
+}
 
 export default function KpiGrid({ summary }: KpiGridProps) {
-  // Always render the four cards; default to 0 so the layout never collapses on
-  // days with no data. Values update once real data loads.
   const s = summary ?? EMPTY_SUMMARY;
 
   return (
-    <View>
-      <View style={[ROW_STYLE, { marginBottom: 12 }]}>
-        <View style={CELL_STYLE}>
+    <View collapsable={false}>
+      <View style={ROW_STYLE}>
+        <View style={{ flex: 1 }}>
           <KpiCard label="Gross sales" value={formatInr(s.grossRevenue)} />
         </View>
-        <View style={CELL_STYLE}>
+        <RowGap />
+        <View style={{ flex: 1 }}>
           <KpiCard label="Making cost" value={formatInr(s.makingCost)} accent="text-red-500" />
         </View>
       </View>
+      <ScrollGap height={12} />
       <View style={ROW_STYLE}>
-        <View style={CELL_STYLE}>
+        <View style={{ flex: 1 }}>
           <KpiCard
             label="Net profit"
             value={formatInr(s.netProfit)}
@@ -91,7 +95,8 @@ export default function KpiGrid({ summary }: KpiGridProps) {
             sub={`${s.orderCount} orders`}
           />
         </View>
-        <View style={CELL_STYLE}>
+        <RowGap />
+        <View style={{ flex: 1 }}>
           <KpiCard
             label="Margin"
             value={`${s.marginPercent}%`}

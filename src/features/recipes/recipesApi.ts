@@ -58,19 +58,6 @@ export interface RecipeData {
   costing?: RecipeCosting;
 }
 
-export interface CounterMenuItem {
-  recipeId: string;
-  portionId: string;
-  itemId: string;
-  name: string;
-  recipeName: string;
-  price: number;
-  makingCost: number;
-  profitPerUnit: number;
-  costingMode: CostingMode;
-  portionLabel: string;
-}
-
 export type CreateRecipePayload = {
   name: string;
   costingMode: CostingMode;
@@ -93,10 +80,7 @@ export const recipesApi = baseApi.injectEndpoints({
       query: () => '/recipes',
       providesTags: [{ type: 'RecipeMapping', id: 'LIST' }],
     }),
-    getCounterMenu: builder.query<{ success: boolean; items: CounterMenuItem[] }, void>({
-      query: () => '/recipes/counter-menu',
-      providesTags: [{ type: 'RecipeMapping', id: 'COUNTER' }],
-    }),
+
     createRecipe: builder.mutation<{ success: boolean; recipe: RecipeData; costing?: RecipeCosting }, CreateRecipePayload>({
       query: (body) => ({
         url: '/recipes',
@@ -105,7 +89,6 @@ export const recipesApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: [
         { type: 'RecipeMapping', id: 'LIST' },
-        { type: 'RecipeMapping', id: 'COUNTER' },
       ],
     }),
     updateRecipe: builder.mutation<
@@ -119,7 +102,6 @@ export const recipesApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: [
         { type: 'RecipeMapping', id: 'LIST' },
-        { type: 'RecipeMapping', id: 'COUNTER' },
       ],
     }),
     previewRecipeCost: builder.mutation<{ success: boolean; costing: RecipeCosting }, RecipeCostPreviewPayload>({
@@ -136,7 +118,6 @@ export const recipesApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: [
         { type: 'RecipeMapping', id: 'LIST' },
-        { type: 'RecipeMapping', id: 'COUNTER' },
       ],
     }),
   }),
@@ -145,7 +126,6 @@ export const recipesApi = baseApi.injectEndpoints({
 
 export const {
   useGetRecipesQuery,
-  useGetCounterMenuQuery,
   useCreateRecipeMutation,
   useUpdateRecipeMutation,
   usePreviewRecipeCostMutation,

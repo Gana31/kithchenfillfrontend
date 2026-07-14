@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   Alert,
   useWindowDimensions,
+  Platform,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { CompositeNavigationProp, useNavigation } from '@react-navigation/native';
@@ -19,6 +20,7 @@ import ScreenContainer from '../../components/ScreenContainer';
 import FloatingActionButton from '../../components/FloatingActionButton';
 import { LoadingView, ErrorState, EmptyStateCard } from '../../components/AsyncStateViews';
 import { SCROLL_LIST_PROPS, LIST_VIRTUALIZATION_PROPS, GRID_VIRTUALIZATION_PROPS } from '../../components/scrollUtils';
+import { ScrollGap } from '../../components/SpacedStack';
 import { useDeleteRecipeMutation, useGetRecipesQuery, RecipeData } from './recipesApi';
 import { OwnerRootStackParamList } from '../../navigation/ownerNavigation.types';
 import { filterRecipesBySearch } from './recipeFormUtils';
@@ -34,7 +36,8 @@ type OwnerTabParamList = {
   Dashboard: undefined;
   Inventory: undefined;
   Recipes: undefined;
-  Counter: undefined;
+  Plates: undefined;
+  Udhaar: undefined;
   Profile: undefined;
 };
 
@@ -50,7 +53,7 @@ const GRID_COLUMNS = 3;
 export default function RecipeBuilderScreen() {
   const navigation = useNavigation<RecipesTabNavigation>();
   const dispatch = useAppDispatch();
-  const { primary, muted, isDark } = useThemeColors();
+  const { primary, muted, isDark, background } = useThemeColors();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const [searchQuery, setSearchQuery] = useState('');
@@ -255,19 +258,29 @@ export default function RecipeBuilderScreen() {
       <FlatList
         ref={listRef}
         key={layout}
+        style={{
+          flex: 1,
+          backgroundColor: Platform.OS === 'android'
+            ? (isDark ? 'rgba(9, 9, 10, 0.015)' : 'rgba(255, 255, 255, 0.015)')
+            : 'transparent'
+        }}
         data={filteredRecipes}
         keyExtractor={(item) => item._id}
         renderItem={renderItem}
         numColumns={isGrid ? GRID_COLUMNS : 1}
         columnWrapperStyle={isGrid ? { gap: GRID_GAP, paddingHorizontal: HPAD } : undefined}
+        ItemSeparatorComponent={isGrid ? undefined : () => <ScrollGap height={16} />}
         ListHeaderComponent={listHeader}
         ListEmptyComponent={renderEmpty()}
         contentContainerStyle={{
-          gap: isGrid ? GRID_GAP : 16,
+          gap: isGrid ? GRID_GAP : 0,
           paddingHorizontal: isGrid ? 0 : HPAD,
           paddingTop: 16,
           paddingBottom: insets.bottom + 120,
           flexGrow: 1,
+          backgroundColor: Platform.OS === 'android'
+            ? (isDark ? 'rgba(9, 9, 10, 0.015)' : 'rgba(255, 255, 255, 0.015)')
+            : 'transparent'
         }}
         {...SCROLL_LIST_PROPS}
         {...(isGrid ? GRID_VIRTUALIZATION_PROPS : LIST_VIRTUALIZATION_PROPS)}

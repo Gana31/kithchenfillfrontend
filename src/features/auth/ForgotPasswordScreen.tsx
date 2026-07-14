@@ -5,13 +5,13 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
   TouchableOpacity,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import BlobBackground from '../../components/BlobBackground';
+import PageScrollView from '../../components/PageScrollView';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
 import Card from '../../components/Card';
@@ -101,7 +101,7 @@ export default function ForgotPasswordScreen() {
       <BlobBackground />
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'padding'} className="flex-1">
-        <ScrollView contentContainerClassName="flex-grow px-6 py-8" showsVerticalScrollIndicator={false}>
+        <PageScrollView fillHeight transparent contentContainerClassName="flex-grow px-6 py-8">
           <TouchableOpacity
             onPress={() => navigation.navigate('Login')}
             className="flex-row items-center mb-6"
@@ -190,7 +190,7 @@ export default function ForgotPasswordScreen() {
               </>
             )}
           </Card>
-        </ScrollView>
+        </PageScrollView>
       </KeyboardAvoidingView>
     </View>
   );

@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, Image, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, Image, KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import BlobBackground from '../../components/BlobBackground';
+import PageScrollView from '../../components/PageScrollView';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
 import Card from '../../components/Card';
@@ -68,10 +69,11 @@ export default function RegisterScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
         className="flex-1"
       >
-        <ScrollView
+        <PageScrollView
+          fillHeight
+          transparent
           contentContainerClassName="flex-grow px-6 py-8"
           className="flex-1"
-          showsVerticalScrollIndicator={false}
         >
           <View className="my-auto">
             {/* Logo & Header */}
@@ -151,7 +153,7 @@ export default function RegisterScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        </ScrollView>
+        </PageScrollView>
       </KeyboardAvoidingView>
     </View>
   );

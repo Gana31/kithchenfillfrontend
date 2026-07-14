@@ -15,6 +15,9 @@ interface InputProps {
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
   maxLength?: number;
   className?: string;
+  editable?: boolean;
+  multiline?: boolean;
+  numberOfLines?: number;
 }
 
 export default function Input({
@@ -27,6 +30,9 @@ export default function Input({
   autoCapitalize = 'none',
   maxLength,
   className = '',
+  editable = true,
+  multiline = false,
+  numberOfLines,
 }: InputProps) {
   const isDark = useAppSelector(selectIsDark);
   const colors = isDark ? COLORS.dark : COLORS.light;
@@ -45,7 +51,17 @@ export default function Input({
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
           maxLength={maxLength}
-          style={{ minHeight: 56, paddingHorizontal: 20, paddingRight: 65, textAlignVertical: 'center' }}
+          editable={editable}
+          multiline={multiline}
+          numberOfLines={numberOfLines}
+          style={{ 
+            minHeight: multiline ? 80 : 56, 
+            paddingHorizontal: 20, 
+            paddingRight: 65, 
+            textAlignVertical: multiline ? 'top' : 'center',
+            paddingTop: multiline ? 12 : 14,
+            paddingBottom: multiline ? 12 : 14,
+          }}
           className="w-full bg-background dark:bg-background-dark text-text dark:text-text-dark border border-border dark:border-border-dark rounded-2xl py-3.5 text-base focus:border-primary"
         />
         {secureTextEntry && (

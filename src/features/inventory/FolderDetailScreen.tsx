@@ -45,7 +45,7 @@ const COLUMNS = 3;
 
 export default function FolderDetailScreen({ navigation, route }: FolderDetailScreenProps) {
   const { folderId, folderName = 'Folder', folderColor } = route.params;
-  const { primary, muted, text, isDark } = useThemeColors();
+  const { primary, muted, text, isDark, background } = useThemeColors();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const dispatch = useAppDispatch();
@@ -345,6 +345,7 @@ export default function FolderDetailScreen({ navigation, route }: FolderDetailSc
       ) : (
         <FlatList
           key={layout}
+          style={{ flex: 1, backgroundColor: background }}
           data={ingredients}
           keyExtractor={(item) => item._id}
           renderItem={renderItem}
@@ -356,6 +357,7 @@ export default function FolderDetailScreen({ navigation, route }: FolderDetailSc
             paddingTop: 8,
             paddingBottom: insets.bottom + (selectMode ? 96 : !isUngrouped ? 96 : 40),
             flexGrow: 1,
+            backgroundColor: background,
           }}
           {...SCROLL_LIST_PROPS}
           refreshControl={

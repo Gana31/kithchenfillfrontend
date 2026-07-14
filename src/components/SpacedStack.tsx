@@ -1,6 +1,5 @@
 import React from 'react';
 import { View, Text, StyleProp, ViewStyle } from 'react-native';
-import { SCROLL_GAP_TOUCH } from './scrollUtils';
 
 interface SpacedStackProps {
   children: React.ReactNode;
@@ -9,14 +8,23 @@ interface SpacedStackProps {
 }
 
 /**
- * Vertical stack with touch-safe spacing. Inserts real spacer views between items
- * so scroll gestures work in the gap area on Android.
+ * Vertical stack with touch-safe spacing.
+ *
+ * IMPORTANT: The outer View must NOT use pointerEvents="box-none".
+ * box-none means the View itself cannot receive touches, only its children can.
+ * On Android this causes the gap spacer Views (between cards) to be
+ * non-touchable — the scroll gesture starts in a dead zone, finds no
+ * touch handler, and falls through to the navigator which ignores it.
+ *
+ * No pointerEvents prop = default "auto" = the View and all children receive
+ * touches normally, and the ScrollView parent correctly claims scroll gestures
+ * that start anywhere in this area (including gaps between cards).
  */
 export default function SpacedStack({ children, gap, style }: SpacedStackProps) {
   const items = React.Children.toArray(children).filter(Boolean);
 
   return (
-    <View style={[{ width: '100%' }, style]} collapsable={false} pointerEvents="box-none">
+    <View style={[{ width: '100%' }, style]} collapsable={false}>
       {items.map((child, index) => (
         <React.Fragment key={index}>
           <View style={{ width: '100%' }} collapsable={false}>
@@ -24,7 +32,7 @@ export default function SpacedStack({ children, gap, style }: SpacedStackProps) 
           </View>
           {index < items.length - 1 ? (
             <View
-              style={[{ height: gap, width: '100%' }, SCROLL_GAP_TOUCH]}
+              style={{ height: gap, width: '100%' }}
               collapsable={false}
             />
           ) : null}
@@ -40,7 +48,7 @@ export default function SpacedStack({ children, gap, style }: SpacedStackProps) 
 export function ScrollGap({ height }: { height: number }) {
   return (
     <View
-      style={[{ height, width: '100%' }, SCROLL_GAP_TOUCH]}
+      style={{ height, width: '100%' }}
       collapsable={false}
     />
   );
@@ -60,7 +68,7 @@ export function SectionHeading({ title, className = '', gap = 16 }: SectionHeadi
         {title}
       </Text>
       <View
-        style={[{ height: gap, width: '100%' }, SCROLL_GAP_TOUCH]}
+        style={{ height: gap, width: '100%' }}
         collapsable={false}
       />
     </View>

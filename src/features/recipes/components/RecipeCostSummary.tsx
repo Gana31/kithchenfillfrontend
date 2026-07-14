@@ -8,12 +8,16 @@ interface RecipeCostSummaryProps {
   preview: RecipeCostPreview;
   customCostLines: CustomCostLine[];
   extraWastagePercent: number;
+  yieldAmount?: number;
+  yieldUnit?: string;
 }
 
 export default function RecipeCostSummary({
   preview,
   customCostLines,
   extraWastagePercent,
+  yieldAmount,
+  yieldUnit,
 }: RecipeCostSummaryProps) {
   return (
     <View className="rounded-2xl bg-primary/10 border border-primary/25 p-4 mb-4">
@@ -53,6 +57,20 @@ export default function RecipeCostSummary({
         <View className="border-t border-primary/20 pt-2 mt-1">
           <Row label="Total recipe cost" value={formatInr(preview.batchCost)} bold />
         </View>
+        {yieldAmount && yieldAmount > 0 && yieldUnit ? (
+          <View className="mt-2 border-t border-primary/10 pt-2" style={{ gap: 6 }}>
+            <Row
+              label={`Cost per batch (${yieldAmount} ${yieldUnit})`}
+              value={formatInr(preview.batchCost)}
+            />
+            {yieldAmount !== 1 && (
+              <Row
+                label={`Cost per 1 ${yieldUnit}`}
+                value={formatInr(preview.batchCost / yieldAmount)}
+              />
+            )}
+          </View>
+        ) : null}
       </View>
     </View>
   );
