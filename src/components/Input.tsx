@@ -18,6 +18,8 @@ interface InputProps {
   editable?: boolean;
   multiline?: boolean;
   numberOfLines?: number;
+  onFocus?: () => void;
+  onBlur?: () => void;
 }
 
 export default function Input({
@@ -33,6 +35,8 @@ export default function Input({
   editable = true,
   multiline = false,
   numberOfLines,
+  onFocus,
+  onBlur,
 }: InputProps) {
   const isDark = useAppSelector(selectIsDark);
   const colors = isDark ? COLORS.dark : COLORS.light;
@@ -54,6 +58,8 @@ export default function Input({
           editable={editable}
           multiline={multiline}
           numberOfLines={numberOfLines}
+          onFocus={onFocus}
+          onBlur={onBlur}
           style={{ 
             minHeight: multiline ? 80 : 56, 
             paddingHorizontal: 20, 

@@ -50,6 +50,8 @@ export default function AddUdhaarScreen() {
   const [notes, setNotes] = useState('');
   const [formError, setFormError] = useState('');
   const [showPlateModal, setShowPlateModal] = useState(false);
+  const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const [isCustomCustomer, setIsCustomCustomer] = useState(true);
 
   // Extract unique customer names
   const existingCustomers = useMemo(() => {
@@ -57,13 +59,15 @@ export default function AddUdhaarScreen() {
     return [...new Set(names)].filter(Boolean).sort();
   }, [udhaars]);
 
-  const filteredCustomers = useMemo(() => {
-    const q = customerName.trim().toLowerCase();
-    if (!q) {
-      return existingCustomers.slice(0, 5); // show first 5
+  // Set initial customer choice
+  React.useEffect(() => {
+    if (existingCustomers.length > 0 && !customerName) {
+      setIsCustomCustomer(false);
+      setCustomerName(existingCustomers[0]);
+    } else if (existingCustomers.length === 0) {
+      setIsCustomCustomer(true);
     }
-    return existingCustomers.filter((name) => name.toLowerCase().includes(q));
-  }, [customerName, existingCustomers]);
+  }, [existingCustomers]);
 
   const activePlate = useMemo(() => {
     if (!selectedPlateId) return null;
@@ -126,37 +130,36 @@ export default function AddUdhaarScreen() {
 
   const listHeader = (
     <View style={{ gap: 12 }}>
-      <Input
-        label="Customer Name"
-        value={customerName}
-        onChangeText={setCustomerName}
-        placeholder="e.g. Rahul Sharma"
-      />
-
-      {filteredCustomers.length > 0 && (
-        <View style={{ marginTop: -4, marginBottom: 6 }}>
-          <Text style={[styles.fieldLabel, { color: muted, marginBottom: 6, fontSize: 10 }]}>
-            Quick Select Existing Customer
-          </Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 4 }}>
-            {filteredCustomers.map((name) => (
-              <TouchableOpacity
-                key={name}
-                onPress={() => setCustomerName(name)}
-                style={{
-                  paddingHorizontal: 12,
-                  paddingVertical: 6,
-                  borderRadius: 20,
-                  backgroundColor: card,
-                  borderColor: border,
-                  borderWidth: 1,
-                }}
-              >
-                <Text style={{ color: text, fontSize: 12, fontWeight: '600' }}>{name}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+      {existingCustomers.length > 0 && (
+        <View style={{ marginBottom: 6 }}>
+          <Text style={[styles.fieldLabel, { color: muted }]}>Select Customer</Text>
+          <TouchableOpacity
+            onPress={() => setShowCustomerModal(true)}
+            style={[styles.pickerTrigger, { borderColor: border, backgroundColor: card }]}
+          >
+            <View className="flex-row items-center">
+              <Ionicons
+                name="person-outline"
+                size={18}
+                color={!isCustomCustomer ? primary : muted}
+                style={{ marginRight: 8 }}
+              />
+              <Text style={{ color: !isCustomCustomer ? text : muted, fontWeight: '600' }}>
+                {!isCustomCustomer ? customerName : 'New Customer (Add Custom Name)'}
+              </Text>
+            </View>
+            <Ionicons name="chevron-down" size={16} color={muted} />
+          </TouchableOpacity>
         </View>
+      )}
+
+      {isCustomCustomer && (
+        <Input
+          label="Customer Name"
+          value={customerName}
+          onChangeText={setCustomerName}
+          placeholder="e.g. Rahul Sharma"
+        />
       )}
 
       {/* Plate Picker */}
@@ -319,6 +322,55 @@ export default function AddUdhaarScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Customer Selection Modal */}
+      <Modal visible={showCustomerModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: background, borderColor: border }]}>
+            <View className="flex-row justify-between items-center px-6 py-4 border-b border-border dark:border-border-dark">
+              <Text style={{ fontSize: 16, fontWeight: 'bold', color: text }}>Select Customer</Text>
+              <TouchableOpacity onPress={() => setShowCustomerModal(false)}>
+                <Ionicons name="close" size={20} color={text} />
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              onPress={() => {
+                setIsCustomCustomer(true);
+                setCustomerName('');
+                setShowCustomerModal(false);
+              }}
+              className="flex-row items-center px-6 py-4 border-b border-border dark:border-border-dark"
+            >
+              <Ionicons name="add-circle-outline" size={18} color={primary} style={{ marginRight: 12 }} />
+              <Text style={{ fontSize: 14, color: primary, fontWeight: '700' }}>
+                + Add New Customer
+              </Text>
+            </TouchableOpacity>
+
+            <FlatList
+              data={existingCustomers}
+              keyExtractor={(item) => item}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  onPress={() => {
+                    setIsCustomCustomer(false);
+                    setCustomerName(item);
+                    setShowCustomerModal(false);
+                  }}
+                  className="flex-row justify-between items-center px-6 py-4 border-b border-border dark:border-border-dark"
+                >
+                  <Text style={{ fontSize: 14, color: text, fontWeight: '600' }}>{item}</Text>
+                  {!isCustomCustomer && customerName === item && (
+                    <Ionicons name="checkmark" size={18} color={primary} />
+                  )}
+                </TouchableOpacity>
+              )}
+              contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
+            />
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -368,5 +420,24 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     borderTopWidth: 1,
     maxHeight: '75%',
+  },
+  dropdownOverlay: {
+    position: 'absolute',
+    top: 76,
+    left: 0,
+    right: 0,
+    borderRadius: 12,
+    borderWidth: 1,
+    zIndex: 9999,
+    elevation: 5,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    overflow: 'hidden',
+  },
+  dropdownItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
 });
