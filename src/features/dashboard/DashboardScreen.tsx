@@ -15,6 +15,7 @@ import {
   useGetPlatformComparisonQuery,
   useGetSalesTrendQuery,
 } from './analyticsApi';
+import { useGetUdhaarsQuery } from '../udhaar/udhaarApi';
 import DateSelector from './components/DateSelector';
 import KpiGrid from './components/KpiGrid';
 import SalesTrendChart from './components/SalesTrendChart';
@@ -59,8 +60,16 @@ export default function DashboardScreen() {
     queryOpts
   );
   const { data: trendData } = useGetSalesTrendQuery(trendRange, queryOpts);
+  const { data: udhaarRes } = useGetUdhaarsQuery(undefined, queryOpts);
 
   const summary = summaryData?.summary;
+
+  const totalUnpaidDues = useMemo(() => {
+    if (!udhaarRes?.udhaars) return 0;
+    return udhaarRes.udhaars
+      .filter((u) => u.status === 'unpaid')
+      .reduce((sum, u) => sum + u.amount, 0);
+  }, [udhaarRes]);
 
   return (
     <>
@@ -93,9 +102,24 @@ export default function DashboardScreen() {
               <Text className="text-sm font-semibold text-text dark:text-text-dark text-center">
                 Manage Udhaar (Credits)
               </Text>
-              <Text className="text-xs text-muted dark:text-muted-dark text-center mt-1 mb-4 leading-relaxed px-4">
+              <Text className="text-xs text-muted dark:text-muted-dark text-center mt-1 mb-3 leading-relaxed px-4">
                 Track dues and payments from customers who eat today and pay later. Maintain their logs easily.
               </Text>
+
+              {totalUnpaidDues > 0 ? (
+                <View className="px-3 py-1.5 bg-red-500/10 border border-red-500/20 rounded-xl mb-4">
+                  <Text className="text-xs font-bold text-red-600 dark:text-red-400">
+                    Total Unpaid: {formatInr(totalUnpaidDues)}
+                  </Text>
+                </View>
+              ) : (
+                <View className="px-3 py-1.5 bg-green-500/10 border border-green-500/20 rounded-xl mb-4">
+                  <Text className="text-xs font-bold text-green-600 dark:text-green-400">
+                    All Cleared! 🎉
+                  </Text>
+                </View>
+              )}
+
               <TouchableOpacity
                 onPress={() => navigation.navigate('Udhaar')}
                 className="w-full py-3 rounded-2xl bg-primary items-center"

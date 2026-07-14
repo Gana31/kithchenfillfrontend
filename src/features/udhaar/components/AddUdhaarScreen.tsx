@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Modal,
+  ScrollView,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,7 +19,7 @@ import Input from '../../../components/Input';
 import Button from '../../../components/Button';
 import { LoadingView } from '../../../components/AsyncStateViews';
 import { useGetPlatesQuery } from '../../plates/platesApi';
-import { useCreateUdhaarMutation } from '../udhaarApi';
+import { useCreateUdhaarMutation, useGetUdhaarsQuery } from '../udhaarApi';
 import { useThemeColors } from '../../../hooks/useThemeColors';
 import { useAppDispatch } from '../../../store/store';
 import { showToast } from '../../../store/toastSlice';
@@ -34,9 +35,11 @@ export default function AddUdhaarScreen() {
 
   // Queries
   const { data: platesData, isLoading: platesLoading } = useGetPlatesQuery();
+  const { data: udhaarRes } = useGetUdhaarsQuery();
   const [createUdhaar, { isLoading: isSaving }] = useCreateUdhaarMutation();
 
   const plates = platesData?.plates ?? [];
+  const udhaars = udhaarRes?.udhaars ?? [];
 
   // Form states
   const [customerName, setCustomerName] = useState('');
@@ -47,6 +50,20 @@ export default function AddUdhaarScreen() {
   const [notes, setNotes] = useState('');
   const [formError, setFormError] = useState('');
   const [showPlateModal, setShowPlateModal] = useState(false);
+
+  // Extract unique customer names
+  const existingCustomers = useMemo(() => {
+    const names = udhaars.map((u) => u.customerName.trim());
+    return [...new Set(names)].filter(Boolean).sort();
+  }, [udhaars]);
+
+  const filteredCustomers = useMemo(() => {
+    const q = customerName.trim().toLowerCase();
+    if (!q) {
+      return existingCustomers.slice(0, 5); // show first 5
+    }
+    return existingCustomers.filter((name) => name.toLowerCase().includes(q));
+  }, [customerName, existingCustomers]);
 
   const activePlate = useMemo(() => {
     if (!selectedPlateId) return null;
@@ -115,6 +132,32 @@ export default function AddUdhaarScreen() {
         onChangeText={setCustomerName}
         placeholder="e.g. Rahul Sharma"
       />
+
+      {filteredCustomers.length > 0 && (
+        <View style={{ marginTop: -4, marginBottom: 6 }}>
+          <Text style={[styles.fieldLabel, { color: muted, marginBottom: 6, fontSize: 10 }]}>
+            Quick Select Existing Customer
+          </Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 4 }}>
+            {filteredCustomers.map((name) => (
+              <TouchableOpacity
+                key={name}
+                onPress={() => setCustomerName(name)}
+                style={{
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 20,
+                  backgroundColor: card,
+                  borderColor: border,
+                  borderWidth: 1,
+                }}
+              >
+                <Text style={{ color: text, fontSize: 12, fontWeight: '600' }}>{name}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
 
       {/* Plate Picker */}
       <View style={{ marginBottom: 6 }}>
